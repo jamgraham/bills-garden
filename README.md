@@ -2,6 +2,9 @@
 
 A Raspberry Pi-based web application for controlling a 3V pin with advanced scheduling capabilities for aeroponics systems.
 
+## Connect
+ssh pi@raspberrypi.local
+
 ## Features
 
 - 🌱 **Modern Web Interface**: Beautiful, responsive design with real-time status updates
@@ -20,11 +23,7 @@ A Raspberry Pi-based web application for controlling a 3V pin with advanced sche
 
 ## GPIO Pin Configuration
 
-The system uses **GPIO 18** for 3V pin control. You can modify this in `app.py`:
-
-```python
-PIN_3V = 18  # Change this to your preferred GPIO pin
-```
+The system uses BCM **GPIO 17** by default. You can change pins via Manage Zones in the UI or by editing `zones.json`.
 
 ## Installation
 
@@ -61,7 +60,7 @@ The web interface will be available at `http://your-raspberry-pi-ip:5000`
 
 ### Quick Control
 - Set the duration in seconds (1-300)
-- Click "Activate Now" to immediately activate the 3V pin
+- Click "Activate Now" to immediately activate the selected zone (defaults to GPIO 17)
 
 ### Creating Schedules
 1. Click "Add Schedule" button
@@ -77,12 +76,6 @@ The web interface will be available at `http://your-raspberry-pi-ip:5000`
 - **Delete**: Remove unwanted schedules
 - **Enable/Disable**: Toggle schedule activation
 
-### System Status
-The header shows:
-- System online/offline status
-- Number of active scheduled jobs
-- Real-time pin state indicator
-
 ## API Endpoints
 
 ### GET `/api/schedule`
@@ -95,7 +88,8 @@ Create a new schedule
   "name": "Morning Watering",
   "interval_minutes": 60,
   "duration_seconds": 30,
-  "enabled": true
+  "enabled": true,
+  "zone_id": 1
 }
 ```
 
@@ -109,7 +103,8 @@ Delete a schedule
 Activate pin immediately
 ```json
 {
-  "duration_seconds": 30
+  "duration_seconds": 30,
+  "zone_id": 1
 }
 ```
 
@@ -123,31 +118,31 @@ Get system status
 }
 ```
 
+### Zones
+- GET `/api/zones`
+- POST `/api/zones`
+- PUT `/api/zones/<id>`
+- DELETE `/api/zones/<id>`
+
 ## File Structure
 
 ```
 plant-waterer/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
-├── schedule.json         # Schedule storage (auto-generated)
+├── schedule.json          # Schedule storage (auto-generated)
+├── zones.json             # Zone storage (auto-generated/managed)
 ├── templates/
-│   └── index.html        # Main web interface
+│   └── index.html         # Main web interface
 ├── static/
 │   ├── css/
-│   │   └── style.css     # Modern styling
+│   │   └── style.css      # Modern styling
 │   └── js/
-│       └── app.js        # Frontend functionality
-└── README.md             # This file
+│       └── app.js         # Frontend functionality
+└── README.md              # This file
 ```
 
 ## Configuration
-
-### Changing GPIO Pin
-Edit `app.py` and modify the `PIN_3V` variable:
-
-```python
-PIN_3V = 17  # Change to your preferred GPIO pin
-```
 
 ### Port Configuration
 The default port is 5000. To change it, modify the last line in `app.py`:

@@ -1,20 +1,14 @@
 [
   {
     "id": 1,
-    "name": "Upper Shelf",
-    "gpio_pin": 18,
+    "name": "GPIO 17",
+    "gpio_pin": 17,
     "voltage": "3.3V"
   },
   {
     "id": 2,
-    "name": "Lower Shelf",
-    "gpio_pin": 23,
-    "voltage": "5V"
-  },
-  {
-    "id": 3,
-    "name": "GPIO 17",
-    "gpio_pin": 17,
+    "name": "GPIO 18",
+    "gpio_pin": 18,
     "voltage": "3.3V"
   }
 ]

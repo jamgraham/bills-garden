@@ -57,9 +57,12 @@ function populateZoneSelectors() {
     const scheduleZone = document.getElementById('scheduleZone');
     const editScheduleZone = document.getElementById('editScheduleZone');
 
-    // Only allow GPIO 17 zone
-    const gpio17Zones = zones.filter(z => parseInt(z.gpio_pin) === 17);
-    const list = gpio17Zones.length ? gpio17Zones : zones; // fallback if absent
+    // Only allow GPIO 17 or GPIO 18 zones
+    const filtered = zones.filter(z => {
+        const pin = parseInt(z.gpio_pin);
+        return pin === 17 || pin === 18;
+    });
+    const list = filtered.length ? filtered : zones; // fallback if absent
 
     const optionsHtml = list.map(z => `<option value="${z.id}">${z.name} (GPIO ${z.gpio_pin}${z.voltage ? ', ' + z.voltage : ''})</option>`).join('');
 
@@ -269,7 +272,7 @@ function showEditScheduleModal(scheduleId) {
     document.getElementById('editScheduleDuration').value = schedule.duration_seconds;
     document.getElementById('editScheduleEnabled').checked = schedule.enabled;
     populateZoneSelectors();
-    // If schedule's zone is not GPIO 17, fallback to first available (GPIO 17)
+    // If schedule's zone isn't present in filtered list, default to first
     const editSelect = document.getElementById('editScheduleZone');
     if ([...editSelect.options].some(o => parseInt(o.value) === schedule.zone_id)) {
         editSelect.value = schedule.zone_id;
