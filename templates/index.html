@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill's Aeroponics - Smart Watering System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-seedling"></i>
+                </div>
+                <h1>Bill's Aeroponics</h1>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">System Online</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Quick Control Panel -->
+            <section class="control-panel">
+                <h2><i class="fas fa-play-circle"></i> Quick Control</h2>
+                <div class="quick-controls">
+                    <div class="control-group">
+                        <label for="zoneSelect">Zone:</label>
+                        <select id="zoneSelect"></select>
+                    </div>
+                    <div class="control-group">
+                        <label for="duration">Duration (seconds):</label>
+                        <input type="number" id="duration" min="1" max="300" value="30">
+                    </div>
+                    <button class="btn btn-primary" onclick="activatePin()">
+                        <i class="fas fa-power-off"></i> Activate Now
+                    </button>
+                </div>
+            </section>
+
+            <!-- Schedule Management -->
+            <section class="schedule-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-clock"></i> Watering Schedule</h2>
+                    <div>
+                        <button class="btn btn-secondary" onclick="showZonesModal()" style="margin-right:8px;">
+                            <i class="fas fa-layer-group"></i> Manage Zones
+                        </button>
+                        <button class="btn btn-secondary" onclick="showAddScheduleModal()">
+                            <i class="fas fa-plus"></i> Add Schedule
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="schedules-grid" id="schedulesGrid">
+                    <!-- Schedules will be loaded here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add Schedule Modal -->
+    <div class="modal" id="addScheduleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Schedule</h3>
+                <button class="close-btn" onclick="hideAddScheduleModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addScheduleForm">
+                <div class="form-group">
+                    <label for="scheduleName">Schedule Name:</label>
+                    <input type="text" id="scheduleName" required placeholder="e.g., Morning Watering">
+                </div>
+                <div class="form-group">
+                    <label for="scheduleZone">Zone:</label>
+                    <select id="scheduleZone" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="intervalMinutes">Interval (minutes):</label>
+                    <input type="number" id="intervalMinutes" min="1" max="1440" value="60" required>
+                </div>
+                <div class="form-group">
+                    <label for="scheduleDuration">Duration (seconds):</label>
+                    <input type="number" id="scheduleDuration" min="1" max="300" value="30" required>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="scheduleEnabled" checked>
+                        <span class="checkmark"></span>
+                        Enable immediately
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideAddScheduleModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Schedule Modal -->
+    <div class="modal" id="editScheduleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Schedule</h3>
+                <button class="close-btn" onclick="hideEditScheduleModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="editScheduleForm">
+                <input type="hidden" id="editScheduleId">
+                <div class="form-group">
+                    <label for="editScheduleName">Schedule Name:</label>
+                    <input type="text" id="editScheduleName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editScheduleZone">Zone:</label>
+                    <select id="editScheduleZone" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="editIntervalMinutes">Interval (minutes):</label>
+                    <input type="number" id="editIntervalMinutes" min="1" max="1440" required>
+                </div>
+                <div class="form-group">
+                    <label for="editScheduleDuration">Duration (seconds):</label>
+                    <input type="number" id="editScheduleDuration" min="1" max="300" required>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="editScheduleEnabled">
+                        <span class="checkmark"></span>
+                        Enable schedule
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()">Delete</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideEditScheduleModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Zones Modal -->
+    <div class="modal" id="zonesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Manage Zones</h3>
+                <button class="close-btn" onclick="hideZonesModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="zones-container">
+                <div id="zonesList" class="zones-list" style="margin-bottom:16px;"></div>
+                <form id="addZoneForm">
+                    <div class="form-row" style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <div class="form-group" style="flex:1 1 180px;">
+                            <label for="zoneName">Name</label>
+                            <input type="text" id="zoneName" placeholder="e.g., 3V Zone" required>
+                        </div>
+                        <div class="form-group" style="flex:1 1 120px;">
+                            <label for="gpioPin">GPIO Pin (BCM)</label>
+                            <input type="number" id="gpioPin" min="1" required>
+                        </div>
+                        <div class="form-group" style="flex:1 1 120px;">
+                            <label for="zoneVoltage">Voltage</label>
+                            <input type="text" id="zoneVoltage" placeholder="3.3V or 5V">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Zone</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html> 

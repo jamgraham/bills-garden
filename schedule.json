@@ -1,0 +1,11 @@
+[
+  {
+    "id": 4,
+    "name": "Zone 2",
+    "interval_minutes": 65,
+    "duration_seconds": 33,
+    "enabled": true,
+    "created_at": "2025-08-08T22:19:21.335899",
+    "zone_id": 1
+  }
+]
