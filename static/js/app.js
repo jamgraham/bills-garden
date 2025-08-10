@@ -122,14 +122,17 @@ function deleteZone(zoneId) {
     fetch(`/api/zones/${zoneId}`, {
         method: 'DELETE'
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Zone deleted successfully', 'success');
-            loadZones();
-        } else {
-            showToast(data.error || 'Failed to delete zone', 'error');
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to delete zone');
+            });
         }
+        return response.json();
+    })
+    .then(data => {
+        showToast('Zone deleted successfully', 'success');
+        loadZones();
     })
     .catch(error => {
         console.error('Error deleting zone:', error);
@@ -241,15 +244,19 @@ function deleteSchedule() {
     fetch(`/api/schedule/${scheduleId}`, {
         method: 'DELETE'
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Schedule deleted successfully', 'success');
-            hideEditScheduleModal();
-            loadSchedules();
-        } else {
-            showToast(data.error || 'Failed to delete schedule', 'error');
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to delete schedule');
+            });
         }
+        return response.json();
+    })
+    .then(data => {
+        const scheduleName = document.getElementById('editScheduleName').value;
+        showToast(`Schedule "${scheduleName}" deleted successfully`, 'success');
+        hideEditScheduleModal();
+        loadSchedules();
     })
     .catch(error => {
         console.error('Error deleting schedule:', error);
@@ -265,14 +272,19 @@ function toggleSchedule(scheduleId, enabled) {
         },
         body: JSON.stringify({ enabled: enabled })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(`Schedule ${enabled ? 'enabled' : 'disabled'} successfully`, 'success');
-            loadSchedules();
-        } else {
-            showToast(data.error || 'Failed to update schedule', 'error');
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to update schedule');
+            });
         }
+        return response.json();
+    })
+    .then(data => {
+        const schedule = schedules.find(s => s.id === scheduleId);
+        const scheduleName = schedule ? schedule.name : 'Unknown Schedule';
+        showToast(`Schedule "${scheduleName}" ${enabled ? 'enabled' : 'disabled'} successfully`, 'success');
+        loadSchedules();
     })
     .catch(error => {
         console.error('Error updating schedule:', error);
@@ -305,15 +317,19 @@ function activatePin() {
             duration_seconds: parseInt(duration)
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(`Activated zone for ${duration} seconds`, 'success');
-            document.getElementById('zoneSelect').value = '';
-            document.getElementById('duration').value = '30';
-        } else {
-            showToast(data.error || 'Failed to activate zone', 'error');
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to activate zone');
+            });
         }
+        return response.json();
+    })
+    .then(data => {
+        const zoneName = zones.find(z => z.id === parseInt(zoneId))?.name || 'Unknown Zone';
+        showToast(`Activated ${zoneName} for ${duration} seconds`, 'success');
+        document.getElementById('zoneSelect').value = '';
+        document.getElementById('duration').value = '30';
     })
     .catch(error => {
         console.error('Error activating pin:', error);
@@ -387,15 +403,18 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(formData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Zone added successfully', 'success');
-                document.getElementById('addZoneForm').reset();
-                loadZones();
-            } else {
-                showToast(data.error || 'Failed to add zone', 'error');
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || 'Failed to add zone');
+                });
             }
+            return response.json();
+        })
+        .then(data => {
+            showToast('Zone added successfully', 'success');
+            document.getElementById('addZoneForm').reset();
+            loadZones();
         })
         .catch(error => {
             console.error('Error adding zone:', error);
@@ -422,15 +441,19 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(formData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Schedule created successfully', 'success');
-                hideAddScheduleModal();
-                loadSchedules();
-            } else {
-                showToast(data.error || 'Failed to create schedule', 'error');
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || 'Failed to create schedule');
+                });
             }
+            return response.json();
+        })
+        .then(data => {
+            const zoneName = zones.find(z => z.id === formData.zone_id)?.name || 'Unknown Zone';
+            showToast(`Schedule "${formData.name}" created for ${zoneName}`, 'success');
+            hideAddScheduleModal();
+            loadSchedules();
         })
         .catch(error => {
             console.error('Error creating schedule:', error);
@@ -458,15 +481,19 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(formData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Schedule updated successfully', 'success');
-                hideEditScheduleModal();
-                loadSchedules();
-            } else {
-                showToast(data.error || 'Failed to update schedule', 'error');
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || 'Failed to update schedule');
+                });
             }
+            return response.json();
+        })
+        .then(data => {
+            const zoneName = zones.find(z => z.id === formData.zone_id)?.name || 'Unknown Zone';
+            showToast(`Schedule "${formData.name}" updated for ${zoneName}`, 'success');
+            hideEditScheduleModal();
+            loadSchedules();
         })
         .catch(error => {
             console.error('Error updating schedule:', error);

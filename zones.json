@@ -10,5 +10,11 @@
     "name": "GPIO 18",
     "gpio_pin": 18,
     "voltage": "3.3V"
+  },
+  {
+    "id": 3,
+    "name": "Zone 1",
+    "gpio_pin": 17,
+    "voltage": "3.3V"
   }
 ]
