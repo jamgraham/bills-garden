@@ -3,103 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill's Aeroponics - Smart Watering System</title>
+    <title>Bills Aeroponics - Smart Watering System</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='8' y='20' width='16' height='8' rx='2' fill='%238B4513' stroke='%23654321' stroke-width='1'/><ellipse cx='16' cy='22' rx='6' ry='2' fill='%23654321'/><path d='M16 22 Q16 18 16 14' stroke='%23228B22' stroke-width='2' fill='none' stroke-linecap='round'/><ellipse cx='14' cy='16' rx='3' ry='1.5' fill='%2332CD32' transform='rotate(-15 14 16)'/><ellipse cx='18' cy='18' rx='3' ry='1.5' fill='%2332CD32' transform='rotate(15 18 18)'/><ellipse cx='12' cy='18' rx='2.5' ry='1.2' fill='%23228B22' transform='rotate(-25 12 18)'/><ellipse cx='20' cy='16' rx='2.5' ry='1.2' fill='%23228B22' transform='rotate(25 20 16)'/><ellipse cx='15' cy='14' rx='2' ry='1' fill='%2390EE90' transform='rotate(-10 15 14)'/><ellipse cx='17' cy='14' rx='2' ry='1' fill='%2390EE90' transform='rotate(10 17 14)'/><ellipse cx='13' y='12' rx='1' ry='1.5' fill='%2387CEEB' opacity='0.8'/><ellipse cx='19' y='11' rx='0.8' ry='1.2' fill='%2387CEEB' opacity='0.6'/></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Launch Screen -->
+    <div id="launchScreen" class="launch-screen">
+        <div class="launch-content">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Bills Aeroponics Logo" class="launch-logo">
+            </div>
+            <div class="launch-text">
+                <h1>Bills Aeroponics</h1>
+                <p>Smart Watering System</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="main-content hidden">
         <!-- Header -->
         <header class="header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <i class="fas fa-seedling"></i>
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Bills Aeroponics Logo" class="header-logo">
+                    <div class="header-text">
+                        <h1>Bills Aeroponics</h1>
+                        <p>Smart Watering System</p>
+                    </div>
                 </div>
-                <h1>Bill's Aeroponics</h1>
-            </div>
-            <div class="status-indicator">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">System Online</span>
+                <div class="status-section">
+                    <div class="status-indicator">
+                        <div id="statusDot" class="status-dot"></div>
+                        <span id="statusText" class="status-text">System Online</span>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
+        <!-- Main Container -->
+        <div class="container">
             <!-- Quick Control Panel -->
-            <section class="control-panel">
-                <h2><i class="fas fa-play-circle"></i> Quick Control</h2>
-                <div class="quick-controls">
-                    <div class="control-group">
+            <div class="quick-control-panel">
+                <h2><i class="fas fa-bolt"></i> Quick Control</h2>
+                <div class="control-grid">
+                    <div class="control-item">
                         <label for="zoneSelect">Zone:</label>
-                        <select id="zoneSelect"></select>
+                        <select id="zoneSelect" class="form-select">
+                            <option value="">Select Zone</option>
+                        </select>
                     </div>
-                    <div class="control-group">
+                    <div class="control-item">
                         <label for="duration">Duration (seconds):</label>
-                        <input type="number" id="duration" min="1" max="300" value="30">
+                        <input type="number" id="duration" class="form-input" min="1" max="300" value="3">
                     </div>
-                    <button class="btn btn-primary" onclick="activatePin()">
-                        <i class="fas fa-power-off"></i> Activate Now
-                    </button>
+                    <div class="control-item">
+                        <button onclick="activatePin()" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Activate
+                        </button>
+                    </div>
                 </div>
-            </section>
+            </div>
 
-            <!-- Schedule Management -->
-            <section class="schedule-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-clock"></i> Watering Schedule</h2>
-                    <div>
-                        <button class="btn btn-secondary" onclick="showZonesModal()" style="margin-right:8px;">
-                            <i class="fas fa-layer-group"></i> Manage Zones
-                        </button>
-                        <button class="btn btn-secondary" onclick="showAddScheduleModal()">
-                            <i class="fas fa-plus"></i> Add Schedule
-                        </button>
-                    </div>
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button onclick="showAddScheduleModal()" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Add New Schedule
+                </button>
+                <button onclick="showZonesModal()" class="btn btn-secondary">
+                    <i class="fas fa-cog"></i> Manage Zones
+                </button>
+            </div>
+
+            <!-- Schedules Grid -->
+            <div class="schedules-section">
+                <h2><i class="fas fa-clock"></i> Watering Schedules</h2>
+                <div id="schedulesGrid" class="schedules-grid">
+                    <!-- Schedules will be populated here -->
                 </div>
-                
-                <div class="schedules-grid" id="schedulesGrid">
-                    <!-- Schedules will be loaded here -->
-                </div>
-            </section>
-        </main>
+            </div>
+        </div>
     </div>
 
     <!-- Add Schedule Modal -->
-    <div class="modal" id="addScheduleModal">
+    <div id="addScheduleModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add New Schedule</h3>
-                <button class="close-btn" onclick="hideAddScheduleModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <h3>Add New Watering Schedule</h3>
+                <button onclick="hideAddScheduleModal()" class="close-btn">&times;</button>
             </div>
-            <form id="addScheduleForm">
+            <form id="addScheduleForm" class="modal-form">
                 <div class="form-group">
                     <label for="scheduleName">Schedule Name:</label>
-                    <input type="text" id="scheduleName" required placeholder="e.g., Morning Watering">
+                    <input type="text" id="scheduleName" class="form-input" required>
                 </div>
                 <div class="form-group">
                     <label for="scheduleZone">Zone:</label>
-                    <select id="scheduleZone" required></select>
+                    <select id="scheduleZone" class="form-select" required>
+                        <option value="">Select Zone</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="intervalMinutes">Interval (minutes):</label>
-                    <input type="number" id="intervalMinutes" min="1" max="1440" value="60" required>
+                    <input type="number" id="intervalMinutes" class="form-input" min="1" max="1440" value="60" required>
                 </div>
                 <div class="form-group">
                     <label for="scheduleDuration">Duration (seconds):</label>
-                    <input type="number" id="scheduleDuration" min="1" max="300" value="30" required>
+                    <input type="number" id="scheduleDuration" class="form-input" min="1" max="300" value="30" required>
                 </div>
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="scheduleEnabled" checked>
                         <span class="checkmark"></span>
-                        Enable immediately
+                        Enable Schedule
                     </label>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="hideAddScheduleModal()">Cancel</button>
+                    <button type="button" onclick="hideAddScheduleModal()" class="btn btn-secondary">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create Schedule</button>
                 </div>
             </form>
@@ -107,84 +130,81 @@
     </div>
 
     <!-- Edit Schedule Modal -->
-    <div class="modal" id="editScheduleModal">
+    <div id="editScheduleModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Edit Schedule</h3>
-                <button class="close-btn" onclick="hideEditScheduleModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <h3>Edit Watering Schedule</h3>
+                <button onclick="hideEditScheduleModal()" class="close-btn">&times;</button>
             </div>
-            <form id="editScheduleForm">
+            <form id="editScheduleForm" class="modal-form">
                 <input type="hidden" id="editScheduleId">
                 <div class="form-group">
                     <label for="editScheduleName">Schedule Name:</label>
-                    <input type="text" id="editScheduleName" required>
+                    <input type="text" id="editScheduleName" class="form-input" required>
                 </div>
                 <div class="form-group">
                     <label for="editScheduleZone">Zone:</label>
-                    <select id="editScheduleZone" required></select>
+                    <select id="editScheduleZone" class="form-select" required>
+                        <option value="">Select Zone</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="editIntervalMinutes">Interval (minutes):</label>
-                    <input type="number" id="editIntervalMinutes" min="1" max="1440" required>
+                    <input type="number" id="editIntervalMinutes" class="form-input" min="1" max="1440" required>
                 </div>
                 <div class="form-group">
                     <label for="editScheduleDuration">Duration (seconds):</label>
-                    <input type="number" id="editScheduleDuration" min="1" max="300" required>
+                    <input type="number" id="editScheduleDuration" class="form-input" min="1" max="300" required>
                 </div>
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="editScheduleEnabled">
                         <span class="checkmark"></span>
-                        Enable schedule
+                        Enable Schedule
                     </label>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()">Delete</button>
-                    <button type="button" class="btn btn-secondary" onclick="hideEditScheduleModal()">Cancel</button>
+                    <button type="button" onclick="deleteSchedule()" class="btn btn-danger">Delete</button>
+                    <button type="button" onclick="hideEditScheduleModal()" class="btn btn-secondary">Cancel</button>
                     <button type="submit" class="btn btn-primary">Update Schedule</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Zones Modal -->
-    <div class="modal" id="zonesModal">
+    <!-- Manage Zones Modal -->
+    <div id="zonesModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Manage Zones</h3>
-                <button class="close-btn" onclick="hideZonesModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button onclick="hideZonesModal()" class="close-btn">&times;</button>
             </div>
-            <div class="zones-container">
-                <div id="zonesList" class="zones-list" style="margin-bottom:16px;"></div>
-                <form id="addZoneForm">
-                    <div class="form-row" style="display:flex; gap:10px; flex-wrap:wrap;">
-                        <div class="form-group" style="flex:1 1 180px;">
-                            <label for="zoneName">Name</label>
-                            <input type="text" id="zoneName" placeholder="e.g., 3V Zone" required>
-                        </div>
-                        <div class="form-group" style="flex:1 1 120px;">
-                            <label for="gpioPin">GPIO Pin (BCM)</label>
-                            <input type="number" id="gpioPin" min="1" required>
-                        </div>
-                        <div class="form-group" style="flex:1 1 120px;">
-                            <label for="zoneVoltage">Voltage</label>
-                            <input type="text" id="zoneVoltage" placeholder="3.3V or 5V">
-                        </div>
+            <div class="zones-content">
+                <div id="zonesList" class="zones-list">
+                    <!-- Zones will be populated here -->
+                </div>
+                <form id="addZoneForm" class="add-zone-form">
+                    <h4>Add New Zone</h4>
+                    <div class="form-group">
+                        <label for="zoneName">Zone Name:</label>
+                        <input type="text" id="zoneName" class="form-input" required>
                     </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Zone</button>
+                    <div class="form-group">
+                        <label for="gpioPin">GPIO Pin:</label>
+                        <input type="number" id="gpioPin" class="form-input" min="1" max="40" required>
                     </div>
+                    <div class="form-group">
+                        <label for="zoneVoltage">Voltage:</label>
+                        <input type="text" id="zoneVoltage" class="form-input" placeholder="e.g., 3.3V, 5V">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Zone</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div class="toast-container" id="toastContainer"></div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

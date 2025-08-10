@@ -1,259 +1,208 @@
 // Global variables
 let schedules = [];
 let zones = [];
-let currentEditId = null;
+let statusInterval;
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
-    Promise.all([loadZones(), loadSchedules()]).then(() => {
-        populateZoneSelectors();
-    });
-    updateStatus();
-    setInterval(updateStatus, 5000); // Update status every 5 seconds
-});
+// Launch Screen Management
+function initLaunchScreen() {
+    const launchScreen = document.getElementById('launchScreen');
+    const mainContent = document.getElementById('mainContent');
+    
+    // Show launch screen initially
+    launchScreen.style.display = 'flex';
+    mainContent.classList.add('hidden');
+    
+    // After 1 second, start the transition
+    setTimeout(() => {
+        // Slide up the launch screen
+        launchScreen.classList.add('slide-up');
+        
+        // After animation completes, show main content
+        setTimeout(() => {
+            launchScreen.style.display = 'none';
+            mainContent.classList.remove('hidden');
+            mainContent.classList.add('visible');
+            
+            // Load data after main content is visible
+            loadInitialData();
+        }, 800); // Match the CSS transition duration
+    }, 1000);
+}
 
-// API Functions
-async function apiCall(endpoint, options = {}) {
-    try {
-        const response = await fetch(`/api${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
-            ...options
+// Load initial data
+function loadInitialData() {
+    loadZones();
+    loadSchedules();
+    startStatusUpdates();
+}
+
+// Zone Management
+function loadZones() {
+    fetch('/api/zones')
+        .then(response => response.json())
+        .then(data => {
+            zones = data;
+            renderZones();
+            populateZoneDropdowns();
+        })
+        .catch(error => {
+            console.error('Error loading zones:', error);
+            showToast('Error loading zones', 'error');
         });
-        
-        if (!response.ok) {
-            const maybeText = await response.text();
-            try {
-                const parsed = JSON.parse(maybeText);
-                throw new Error(parsed.error || maybeText || `HTTP ${response.status}`);
-            } catch (_) {
-                throw new Error(maybeText || `HTTP ${response.status}`);
-            }
-        }
-        
-        return await response.json();
-    } catch (error) {
-        console.error('API call failed:', error);
-        showToast('Error: ' + error.message, 'error');
-        throw error;
-    }
 }
 
-// Zones
-async function loadZones() {
-    try {
-        zones = await apiCall('/zones');
-        populateZoneSelectors();
-        renderZonesList();
-    } catch (error) {
-        console.error('Failed to load zones:', error);
-    }
-}
-
-function populateZoneSelectors() {
-    const zoneSelect = document.getElementById('zoneSelect');
-    const scheduleZone = document.getElementById('scheduleZone');
-    const editScheduleZone = document.getElementById('editScheduleZone');
-
-    // Only allow GPIO 17 or GPIO 18 zones
-    const filtered = zones.filter(z => {
-        const pin = parseInt(z.gpio_pin);
-        return pin === 17 || pin === 18;
-    });
-    const list = filtered.length ? filtered : zones; // fallback if absent
-
-    const optionsHtml = list.map(z => `<option value="${z.id}">${z.name} (GPIO ${z.gpio_pin}${z.voltage ? ', ' + z.voltage : ''})</option>`).join('');
-
-    if (zoneSelect) zoneSelect.innerHTML = optionsHtml;
-    if (scheduleZone) scheduleZone.innerHTML = optionsHtml;
-    if (editScheduleZone) editScheduleZone.innerHTML = optionsHtml;
-}
-
-function renderZonesList() {
-    const container = document.getElementById('zonesList');
-    if (!container) return;
-
-    if (!zones.length) {
-        container.innerHTML = '<p>No zones yet. Add one below.</p>';
+function renderZones() {
+    const zonesList = document.getElementById('zonesList');
+    if (!zonesList) return;
+    
+    if (zones.length === 0) {
+        zonesList.innerHTML = '<div class="empty-state"><h3>No zones configured</h3><p>Add your first zone to get started</p></div>';
         return;
     }
-
-    container.innerHTML = zones.map(z => `
-        <div class="zone-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-            <div><strong>${z.name}</strong> — GPIO ${z.gpio_pin}${z.voltage ? ' · ' + z.voltage : ''}</div>
-            <div class="zone-actions" style="display:flex; gap:8px;">
-                <button class="btn btn-danger" onclick="deleteZone(${z.id})"><i class="fas fa-trash"></i> Delete</button>
+    
+    zonesList.innerHTML = zones.map(zone => `
+        <div class="zone-row">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${zone.name}</strong> - GPIO ${zone.gpio_pin}
+                    ${zone.voltage ? `(${zone.voltage})` : ''}
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="editZone(${zone.id})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteZone(${zone.id})" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         </div>
     `).join('');
 }
 
-async function deleteZone(zoneId) {
-    if (!zoneId) return;
-    if (!confirm('Delete this zone? This cannot be undone.')) return;
-    try {
-        await apiCall(`/zones/${zoneId}`, { method: 'DELETE' });
-        showToast('Zone deleted', 'success');
-        await loadZones();
-        populateZoneSelectors();
-    } catch (err) {
-        // Error already toasted by apiCall; keep UI responsive
+function populateZoneDropdowns() {
+    // Filter zones to only show GPIO 17 and 18
+    const availableZones = zones.filter(zone => zone.gpio_pin === 17 || zone.gpio_pin === 18);
+    
+    // If no GPIO 17 or 18 zones exist, show all zones as fallback
+    const zonesToShow = availableZones.length > 0 ? availableZones : zones;
+    
+    const zoneSelect = document.getElementById('zoneSelect');
+    const scheduleZone = document.getElementById('scheduleZone');
+    const editScheduleZone = document.getElementById('editScheduleZone');
+    
+    const zoneOptions = zonesToShow.map(zone => 
+        `<option value="${zone.id}">${zone.name} (GPIO ${zone.gpio_pin})</option>`
+    ).join('');
+    
+    if (zoneSelect) {
+        zoneSelect.innerHTML = '<option value="">Select Zone</option>' + zoneOptions;
+    }
+    if (scheduleZone) {
+        scheduleZone.innerHTML = '<option value="">Select Zone</option>' + zoneOptions;
+    }
+    if (editScheduleZone) {
+        editScheduleZone.innerHTML = '<option value="">Select Zone</option>' + zoneOptions;
     }
 }
 
 function showZonesModal() {
     document.getElementById('zonesModal').classList.add('show');
 }
+
 function hideZonesModal() {
     document.getElementById('zonesModal').classList.remove('show');
-    document.getElementById('addZoneForm').reset();
 }
 
-document.getElementById('addZoneForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const formData = {
-        name: document.getElementById('zoneName').value,
-        gpio_pin: parseInt(document.getElementById('gpioPin').value),
-        voltage: document.getElementById('zoneVoltage').value
-    };
-    try {
-        await apiCall('/zones', { method: 'POST', body: JSON.stringify(formData) });
-        showToast('Zone added', 'success');
-        await loadZones();
-        populateZoneSelectors();
-        // keep modal open so user can add more
-    } catch (err) {}
-});
-
-// Load schedules from server
-async function loadSchedules() {
-    try {
-        schedules = await apiCall('/schedule');
-        renderSchedules();
-    } catch (error) {
-        console.error('Failed to load schedules:', error);
-    }
-}
-
-// Render schedules in the grid
-function renderSchedules() {
-    const grid = document.getElementById('schedulesGrid');
-    
-    if (schedules.length === 0) {
-        grid.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-clock" style="font-size: 48px; color: #ccc; margin-bottom: 20px;"></i>
-                <h3>No schedules yet</h3>
-                <p>Create your first watering schedule to get started.</p>
-            </div>
-        `;
+function deleteZone(zoneId) {
+    if (!confirm('Are you sure you want to delete this zone? This action cannot be undone.')) {
         return;
     }
     
-    grid.innerHTML = schedules.map(schedule => {
+    fetch(`/api/zones/${zoneId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Zone deleted successfully', 'success');
+            loadZones();
+        } else {
+            showToast(data.error || 'Failed to delete zone', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting zone:', error);
+        showToast('Error deleting zone', 'error');
+    });
+}
+
+// Schedule Management
+function loadSchedules() {
+    fetch('/api/schedule')
+        .then(response => response.json())
+        .then(data => {
+            schedules = data;
+            renderSchedules();
+        })
+        .catch(error => {
+            console.error('Error loading schedules:', error);
+            showToast('Error loading schedules', 'error');
+        });
+}
+
+function renderSchedules() {
+    const schedulesGrid = document.getElementById('schedulesGrid');
+    if (!schedulesGrid) return;
+    
+    if (schedules.length === 0) {
+        schedulesGrid.innerHTML = '<div class="empty-state"><h3>No schedules configured</h3><p>Create your first watering schedule to get started</p></div>';
+        return;
+    }
+    
+    schedulesGrid.innerHTML = schedules.map(schedule => {
         const zone = zones.find(z => z.id === schedule.zone_id);
-        const zoneLabel = zone ? `${zone.name} (GPIO ${zone.gpio_pin})` : `Zone ${schedule.zone_id}`;
+        const zoneName = zone ? zone.name : 'Unknown Zone';
+        
         return `
-        <div class="schedule-card ${schedule.enabled ? 'enabled' : 'disabled'}">
-            <div class="schedule-header">
-                <div>
-                    <div class="schedule-name">${schedule.name}</div>
-                    <div class="schedule-status ${schedule.enabled ? 'enabled' : 'disabled'}">
-                        ${schedule.enabled ? 'Active' : 'Disabled'}
+            <div class="schedule-card ${schedule.enabled ? 'enabled' : 'disabled'}">
+                <div class="schedule-header">
+                    <div>
+                        <div class="schedule-name">${schedule.name}</div>
+                        <div class="schedule-status ${schedule.enabled ? 'enabled' : 'disabled'}">
+                            ${schedule.enabled ? 'Active' : 'Inactive'}
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="schedule-details">
-                <div class="detail-item">
-                    <div class="detail-label">Zone</div>
-                    <div class="detail-value">${zoneLabel}</div>
+                <div class="schedule-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Zone</div>
+                        <div class="detail-value">${zoneName}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Interval</div>
+                        <div class="detail-value">${schedule.interval_minutes}m</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Duration</div>
+                        <div class="detail-value">${schedule.duration_seconds}s</div>
+                    </div>
                 </div>
-                <div class="detail-item">
-                    <div class="detail-label">Interval</div>
-                    <div class="detail-value">${formatInterval(schedule.interval_minutes)}</div>
-                </div>
-                <div class="detail-item">
-                    <div class="detail-label">Duration</div>
-                    <div class="detail-value">${schedule.duration_seconds}s</div>
+                <div class="schedule-actions">
+                    <button onclick="editSchedule(${schedule.id})" class="btn btn-secondary">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button onclick="toggleSchedule(${schedule.id}, ${!schedule.enabled})" class="btn ${schedule.enabled ? 'btn-danger' : 'btn-success'}">
+                        <i class="fas fa-${schedule.enabled ? 'pause' : 'play'}"></i> ${schedule.enabled ? 'Disable' : 'Enable'}
+                    </button>
                 </div>
             </div>
-            <div class="schedule-actions">
-                <button class="btn btn-secondary" onclick="editSchedule(${schedule.id})">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-                <button class="btn btn-primary" onclick="testSchedule(${schedule.id})">
-                    <i class="fas fa-play"></i> Test
-                </button>
-            </div>
-        </div>`;
+        `;
     }).join('');
 }
 
-// Format interval for display
-function formatInterval(minutes) {
-    if (minutes < 60) {
-        return `${minutes} min`;
-    } else if (minutes === 60) {
-        return '1 hour';
-    } else {
-        const hours = Math.floor(minutes / 60);
-        const remainingMinutes = minutes % 60;
-        if (remainingMinutes === 0) {
-            return `${hours} hours`;
-        } else {
-            return `${hours}h ${remainingMinutes}m`;
-        }
-    }
-}
-
-// Activate pin immediately
-async function activatePin() {
-    const duration = parseInt(document.getElementById('duration').value);
-    const zoneId = parseInt(document.getElementById('zoneSelect').value);
-    
-    if (duration < 1 || duration > 300) {
-        showToast('Duration must be between 1 and 300 seconds', 'error');
-        return;
-    }
-    if (!zoneId) {
-        showToast('Please select a zone', 'error');
-        return;
-    }
-    
-    try {
-        await apiCall('/pin/activate', {
-            method: 'POST',
-            body: JSON.stringify({ duration_seconds: duration, zone_id: zoneId })
-        });
-        showToast(`Activated zone for ${duration} seconds`, 'success');
-    } catch (error) {
-        console.error('Failed to activate pin:', error);
-    }
-}
-
-// Test a schedule (activate pin with schedule duration)
-async function testSchedule(scheduleId) {
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (!schedule) return;
-    
-    try {
-        await apiCall('/pin/activate', {
-            method: 'POST',
-            body: JSON.stringify({ duration_seconds: schedule.duration_seconds, zone_id: schedule.zone_id })
-        });
-        showToast(`Tested schedule: ${schedule.name} (${schedule.duration_seconds}s)`, 'success');
-    } catch (error) {
-        console.error('Failed to test schedule:', error);
-    }
-}
-
-// Modal functions
 function showAddScheduleModal() {
     document.getElementById('addScheduleModal').classList.add('show');
-    document.getElementById('scheduleName').focus();
-    populateZoneSelectors();
 }
 
 function hideAddScheduleModal() {
@@ -261,210 +210,281 @@ function hideAddScheduleModal() {
     document.getElementById('addScheduleForm').reset();
 }
 
-function showEditScheduleModal(scheduleId) {
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (!schedule) return;
-    
-    currentEditId = scheduleId;
-    document.getElementById('editScheduleId').value = scheduleId;
-    document.getElementById('editScheduleName').value = schedule.name;
-    document.getElementById('editIntervalMinutes').value = schedule.interval_minutes;
-    document.getElementById('editScheduleDuration').value = schedule.duration_seconds;
-    document.getElementById('editScheduleEnabled').checked = schedule.enabled;
-    populateZoneSelectors();
-    // If schedule's zone isn't present in filtered list, default to first
-    const editSelect = document.getElementById('editScheduleZone');
-    if ([...editSelect.options].some(o => parseInt(o.value) === schedule.zone_id)) {
-        editSelect.value = schedule.zone_id;
-    } else if (editSelect.options.length > 0) {
-        editSelect.value = editSelect.options[0].value;
-    }
-    
+function showEditScheduleModal() {
     document.getElementById('editScheduleModal').classList.add('show');
 }
 
 function hideEditScheduleModal() {
     document.getElementById('editScheduleModal').classList.remove('show');
-    currentEditId = null;
 }
 
 function editSchedule(scheduleId) {
-    showEditScheduleModal(scheduleId);
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (!schedule) return;
+    
+    document.getElementById('editScheduleId').value = schedule.id;
+    document.getElementById('editScheduleName').value = schedule.name;
+    document.getElementById('editScheduleZone').value = schedule.zone_id;
+    document.getElementById('editIntervalMinutes').value = schedule.interval_minutes;
+    document.getElementById('editScheduleDuration').value = schedule.duration_seconds;
+    document.getElementById('editScheduleEnabled').checked = schedule.enabled;
+    
+    showEditScheduleModal();
 }
 
-// Form submissions
-document.getElementById('addScheduleForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = {
-        name: document.getElementById('scheduleName').value,
-        zone_id: parseInt(document.getElementById('scheduleZone').value),
-        interval_minutes: parseInt(document.getElementById('intervalMinutes').value),
-        duration_seconds: parseInt(document.getElementById('scheduleDuration').value),
-        enabled: document.getElementById('scheduleEnabled').checked
-    };
-    
-    try {
-        await apiCall('/schedule', {
-            method: 'POST',
-            body: JSON.stringify(formData)
-        });
-        
-        hideAddScheduleModal();
-        await loadSchedules();
-        showToast('Schedule created successfully', 'success');
-    } catch (error) {
-        console.error('Failed to create schedule:', error);
-    }
-});
-
-
-document.getElementById('editScheduleForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    if (!currentEditId) return;
-    
-    const formData = {
-        name: document.getElementById('editScheduleName').value,
-        zone_id: parseInt(document.getElementById('editScheduleZone').value),
-        interval_minutes: parseInt(document.getElementById('editIntervalMinutes').value),
-        duration_seconds: parseInt(document.getElementById('editScheduleDuration').value),
-        enabled: document.getElementById('editScheduleEnabled').checked
-    };
-    
-    try {
-        await apiCall(`/schedule/${currentEditId}`, {
-            method: 'PUT',
-            body: JSON.stringify(formData)
-        });
-        
-        hideEditScheduleModal();
-        await loadSchedules();
-        showToast('Schedule updated successfully', 'success');
-    } catch (error) {
-        console.error('Failed to update schedule:', error);
-    }
-});
-
-// Delete schedule
-async function deleteSchedule() {
-    if (!currentEditId) return;
-    
+function deleteSchedule() {
+    const scheduleId = document.getElementById('editScheduleId').value;
     if (!confirm('Are you sure you want to delete this schedule?')) {
         return;
     }
     
-    try {
-        await apiCall(`/schedule/${currentEditId}`, {
-            method: 'DELETE'
-        });
-        
-        hideEditScheduleModal();
-        await loadSchedules();
-        showToast('Schedule deleted successfully', 'success');
-    } catch (error) {
-        console.error('Failed to delete schedule:', error);
-    }
+    fetch(`/api/schedule/${scheduleId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Schedule deleted successfully', 'success');
+            hideEditScheduleModal();
+            loadSchedules();
+        } else {
+            showToast(data.error || 'Failed to delete schedule', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting schedule:', error);
+        showToast('Error deleting schedule', 'error');
+    });
 }
 
-// Update system status
-async function updateStatus() {
-    try {
-        const status = await apiCall('/status');
-        
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        
-        if (status.scheduler_running) {
-            statusDot.style.background = '#4CAF50';
-            statusText.textContent = `System Online (${status.active_jobs} active jobs)`;
+function toggleSchedule(scheduleId, enabled) {
+    fetch(`/api/schedule/${scheduleId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ enabled: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Schedule ${enabled ? 'enabled' : 'disabled'} successfully`, 'success');
+            loadSchedules();
         } else {
+            showToast(data.error || 'Failed to update schedule', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating schedule:', error);
+        showToast('Error updating schedule', 'error');
+    });
+}
+
+// Quick Control
+function activatePin() {
+    const zoneId = document.getElementById('zoneSelect').value;
+    const duration = document.getElementById('duration').value;
+    
+    if (!zoneId) {
+        showToast('Please select a zone', 'error');
+        return;
+    }
+    
+    if (!duration || duration < 1 || duration > 300) {
+        showToast('Please enter a valid duration (1-300 seconds)', 'error');
+        return;
+    }
+    
+    fetch('/api/pin/activate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            zone_id: parseInt(zoneId),
+            duration_seconds: parseInt(duration)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Activated zone for ${duration} seconds`, 'success');
+            document.getElementById('zoneSelect').value = '';
+            document.getElementById('duration').value = '30';
+        } else {
+            showToast(data.error || 'Failed to activate zone', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error activating pin:', error);
+        showToast('Error activating zone', 'error');
+    });
+}
+
+// Status Updates
+function startStatusUpdates() {
+    statusInterval = setInterval(updateStatus, 5000);
+    updateStatus(); // Initial update
+}
+
+function updateStatus() {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            if (data.system_online) {
+                statusDot.style.background = '#4CAF50';
+                statusText.textContent = 'System Online';
+            } else {
+                statusDot.style.background = '#f44336';
+                statusText.textContent = 'System Offline';
+            }
+        })
+        .catch(error => {
+            console.error('Error updating status:', error);
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
             statusDot.style.background = '#f44336';
-            statusText.textContent = 'System Offline';
-        }
-        
-        // Update pin state indicator
-        if (status.pin_state) {
-            statusDot.style.animation = 'pulse 0.5s infinite';
-        } else {
-            statusDot.style.animation = 'pulse 2s infinite';
-        }
-    } catch (error) {
-        console.error('Failed to update status:', error);
-        document.getElementById('statusDot').style.background = '#f44336';
-        document.getElementById('statusText').textContent = 'Connection Error';
-    }
+            statusText.textContent = 'Connection Error';
+        });
 }
 
-// Toast notifications
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toastContainer');
+// Toast Notifications
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
     
-    container.appendChild(toast);
+    toastContainer.appendChild(toast);
     
-    // Auto remove after 5 seconds
     setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
-        }
+        toast.remove();
     }, 5000);
 }
 
-// Keyboard shortcuts
-document.addEventListener('keydown', function(e) {
-    // Escape key to close modals
-    if (e.key === 'Escape') {
-        hideAddScheduleModal();
-        hideEditScheduleModal();
-        hideZonesModal();
-    }
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize launch screen
+    initLaunchScreen();
     
-    // Ctrl/Cmd + N to add new schedule
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    // Zone form submission
+    document.getElementById('addZoneForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        showAddScheduleModal();
+        
+        const formData = {
+            name: document.getElementById('zoneName').value,
+            gpio_pin: parseInt(document.getElementById('gpioPin').value),
+            voltage: document.getElementById('zoneVoltage').value || null
+        };
+        
+        fetch('/api/zones', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Zone added successfully', 'success');
+                document.getElementById('addZoneForm').reset();
+                loadZones();
+            } else {
+                showToast(data.error || 'Failed to add zone', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error adding zone:', error);
+            showToast('Error adding zone', 'error');
+        });
+    });
+    
+    // Add schedule form submission
+    document.getElementById('addScheduleForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            name: document.getElementById('scheduleName').value,
+            zone_id: parseInt(document.getElementById('scheduleZone').value),
+            interval_minutes: parseInt(document.getElementById('intervalMinutes').value),
+            duration_seconds: parseInt(document.getElementById('scheduleDuration').value),
+            enabled: document.getElementById('scheduleEnabled').checked
+        };
+        
+        fetch('/api/schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Schedule created successfully', 'success');
+                hideAddScheduleModal();
+                loadSchedules();
+            } else {
+                showToast(data.error || 'Failed to create schedule', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating schedule:', error);
+            showToast('Error creating schedule', 'error');
+        });
+    });
+    
+    // Edit schedule form submission
+    document.getElementById('editScheduleForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const scheduleId = document.getElementById('editScheduleId').value;
+        const formData = {
+            name: document.getElementById('editScheduleName').value,
+            zone_id: parseInt(document.getElementById('editScheduleZone').value),
+            interval_minutes: parseInt(document.getElementById('editIntervalMinutes').value),
+            duration_seconds: parseInt(document.getElementById('editScheduleDuration').value),
+            enabled: document.getElementById('editScheduleEnabled').checked
+        };
+        
+        fetch(`/api/schedule/${scheduleId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Schedule updated successfully', 'success');
+                hideEditScheduleModal();
+                loadSchedules();
+            } else {
+                showToast(data.error || 'Failed to update schedule', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating schedule:', error);
+            showToast('Error updating schedule', 'error');
+        });
+    });
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('show');
+        }
+    });
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (statusInterval) {
+        clearInterval(statusInterval);
     }
-});
-
-// Click outside modal to close
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) {
-        hideAddScheduleModal();
-        hideEditScheduleModal();
-        hideZonesModal();
-    }
-});
-
-// Input validation
-document.getElementById('duration').addEventListener('input', function() {
-    const value = parseInt(this.value);
-    if (value < 1) this.value = 1;
-    if (value > 300) this.value = 300;
-});
-
-document.getElementById('intervalMinutes').addEventListener('input', function() {
-    const value = parseInt(this.value);
-    if (value < 1) this.value = 1;
-    if (value > 1440) this.value = 1440;
-});
-
-document.getElementById('scheduleDuration').addEventListener('input', function() {
-    const value = parseInt(this.value);
-    if (value < 1) this.value = 1;
-    if (value > 300) this.value = 300;
-});
-
-document.getElementById('editIntervalMinutes').addEventListener('input', function() {
-    const value = parseInt(this.value);
-    if (value < 1) this.value = 1;
-    if (value > 1440) this.value = 1440;
-});
-
-document.getElementById('editScheduleDuration').addEventListener('input', function() {
-    const value = parseInt(this.value);
-    if (value < 1) this.value = 1;
-    if (value > 300) this.value = 300;
 }); 

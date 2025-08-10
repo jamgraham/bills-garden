@@ -1,1 +1,198 @@
- 
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" style="background: linear-gradient(135deg, #87CEEB 0%, #98FB98 100%);">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="hatGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F4A460;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DEB887;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="bandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#228B22;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#32CD32;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="plantGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#228B22;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#90EE90;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="waterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#87CEEB;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#4682B4;stop-opacity:0.6" />
+    </linearGradient>
+    
+    <!-- Filters -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    
+    <!-- Animations -->
+    <animateTransform id="waterFlow" attributeName="transform" type="translate" 
+                      values="0,0; 0,-5; 0,0" dur="2s" repeatCount="indefinite"/>
+    
+    <animateTransform id="plantGrow" attributeName="transform" type="scale" 
+                      values="1,1; 1.05,1.05; 1,1" dur="3s" repeatCount="indefinite"/>
+    
+    <animateTransform id="hatBounce" attributeName="transform" type="translate" 
+                      values="0,0; 0,-2; 0,0" dur="4s" repeatCount="indefinite"/>
+    
+    <animateTransform id="bubbleFloat" attributeName="transform" type="translate" 
+                      values="0,0; 0,-8; 0,0" dur="1.5s" repeatCount="indefinite"/>
+  </defs>
+  
+  <!-- Background Elements -->
+  <circle cx="350" cy="50" r="30" fill="#FFD700" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;1;0.8" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Water Droplets -->
+  <g id="waterDrops">
+    <circle cx="80" cy="120" r="3" fill="url(#waterGradient)" opacity="0.7">
+      <animate attributeName="cy" values="120;110;120" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="85" cy="125" r="2" fill="url(#waterGradient)" opacity="0.6">
+      <animate attributeName="cy" values="125;115;125" dur="2.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="90" cy="130" r="2.5" fill="url(#waterGradient)" opacity="0.8">
+      <animate attributeName="cy" values="130;120;130" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;1;0.8" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- Aeroponics System -->
+  <g id="aeroponicsSystem">
+    <!-- Main Container -->
+    <rect x="60" y="140" width="80" height="40" rx="5" fill="#F5F5DC" filter="url(#shadow)"/>
+    
+    <!-- Water Level -->
+    <rect x="65" y="165" width="70" height="10" rx="3" fill="url(#waterGradient)">
+      <animate attributeName="height" values="10;12;10" dur="3s" repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Plant Roots -->
+    <g id="roots">
+      <path d="M 90 140 Q 85 135 80 130 Q 75 125 70 120" stroke="#8B4513" stroke-width="2" fill="none" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;1;0.8" dur="2.5s" repeatCount="indefinite"/>
+      </path>
+      <path d="M 95 140 Q 100 135 105 130 Q 110 125 115 120" stroke="#8B4513" stroke-width="2" fill="none" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;1;0.8" dur="2.8s" repeatCount="indefinite"/>
+      </path>
+      <path d="M 92 140 Q 90 135 88 130 Q 86 125 84 120" stroke="#8B4513" stroke-width="1.5" fill="none" opacity="0.6">
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="3.2s" repeatCount="indefinite"/>
+      </path>
+    </g>
+    
+    <!-- Mist/Fog Effect -->
+    <g id="mist" opacity="0.4">
+      <circle cx="75" cy="145" r="8" fill="url(#waterGradient)">
+        <animate attributeName="r" values="8;12;8" dur="4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.7;0.4" dur="4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="85" cy="150" r="6" fill="url(#waterGradient)">
+        <animate attributeName="r" values="6;10;6" dur="3.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.6;0.4" dur="3.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="95" cy="148" r="7" fill="url(#waterGradient)">
+        <animate attributeName="r" values="7;11;7" dur="3.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.65;0.4" dur="3.8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+  </g>
+  
+  <!-- Growing Plants -->
+  <g id="plants">
+    <!-- Plant 1 -->
+    <g transform="translate(85, 120)">
+      <path d="M 0 0 Q -5 -15 -8 -25 Q -10 -35 -8 -45 Q -5 -55 0 -60 Q 5 -55 8 -45 Q 10 -35 8 -25 Q 5 -15 0 0" 
+            fill="url(#plantGradient)" filter="url(#shadow)">
+        <animateTransform attributeName="transform" type="scale" 
+                          values="1,1; 1.02,1.02; 1,1" dur="4s" repeatCount="indefinite"/>
+      </path>
+      <circle cx="-3" cy="-30" r="2" fill="#FFD700">
+        <animate attributeName="r" values="2;2.5;2" dur="3s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    
+    <!-- Plant 2 -->
+    <g transform="translate(105, 125)">
+      <path d="M 0 0 Q -3 -12 -5 -20 Q -7 -28 -5 -35 Q -3 -42 0 -45 Q 3 -42 5 -35 Q 7 -28 5 -20 Q 3 -12 0 0" 
+            fill="url(#plantGradient)" filter="url(#shadow)">
+        <animateTransform attributeName="transform" type="scale" 
+                          values="1,1; 1.03,1.03; 1,1" dur="3.5s" repeatCount="indefinite"/>
+      </path>
+      <circle cx="2" cy="-25" r="1.5" fill="#FFD700">
+        <animate attributeName="r" values="1.5;2;1.5" dur="2.8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+  </g>
+  
+  <!-- Character with Hat (inspired by photo) -->
+  <g id="character">
+    <!-- Hat -->
+    <ellipse cx="200" cy="80" rx="35" ry="15" fill="url(#hatGradient)" filter="url(#shadow)">
+      <animateTransform attributeName="transform" type="translate" 
+                        values="0,0; 0,-2; 0,0" dur="4s" repeatCount="indefinite"/>
+    </ellipse>
+    
+    <!-- Hat Band -->
+    <ellipse cx="200" cy="78" rx="32" ry="8" fill="url(#bandGradient)"/>
+    
+    <!-- Face -->
+    <circle cx="200" cy="100" r="25" fill="#FFE4C4" filter="url(#shadow)"/>
+    
+    <!-- Mustache -->
+    <path d="M 185 105 Q 190 108 195 105 Q 200 108 205 105 Q 210 108 215 105" 
+          stroke="#8B4513" stroke-width="3" fill="none" stroke-linecap="round"/>
+    
+    <!-- Eyes -->
+    <circle cx="192" cy="95" r="3" fill="#000000">
+      <animate attributeName="r" values="3;3.5;3" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="208" cy="95" r="3" fill="#000000">
+      <animate attributeName="r" values="3;3.5;3" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    
+    <!-- Smile -->
+    <path d="M 190 110 Q 200 115 210 110" stroke="#000000" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Company Name -->
+  <g id="companyName">
+    <text x="200" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#2F4F4F">
+      Bills
+      <animate attributeName="fill-opacity" values="1;0.7;1" dur="3s" repeatCount="indefinite"/>
+    </text>
+    <text x="200" y="190" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#228B22">
+      Aeroponics
+      <animate attributeName="fill-opacity" values="1;0.8;1" dur="2.5s" repeatCount="indefinite"/>
+    </text>
+  </g>
+  
+  <!-- Floating Bubbles -->
+  <g id="bubbles">
+    <circle cx="320" cy="80" r="4" fill="url(#waterGradient)" opacity="0.6">
+      <animate attributeName="cy" values="80;70;80" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="325" cy="90" r="3" fill="url(#waterGradient)" opacity="0.5">
+      <animate attributeName="cy" values="90;80;90" dur="2.3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="330" cy="100" r="3.5" fill="url(#waterGradient)" opacity="0.7">
+      <animate attributeName="cy" values="100;90;100" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- Water Flow Lines -->
+  <g id="waterFlow" opacity="0.6">
+    <path d="M 70 160 Q 75 155 80 150 Q 85 145 90 140" stroke="url(#waterGradient)" stroke-width="1.5" fill="none" opacity="0.4">
+      <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <path d="M 75 165 Q 80 160 85 155 Q 90 150 95 145" stroke="url(#waterGradient)" stroke-width="1" fill="none" opacity="0.3">
+      <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.5s" repeatCount="indefinite"/>
+    </path>
+  </g>
+</svg> 
