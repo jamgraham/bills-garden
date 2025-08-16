@@ -5,6 +5,9 @@ A Raspberry Pi-based web application for controlling a 3V pin with advanced sche
 ## Connect
 ssh pi@raspberrypi.local
 
+# Enable service
+sudo nano /etc/systemd/system/bills-garden.service
+
 ## Features
 
 - 🌱 **Modern Web Interface**: Beautiful, responsive design with real-time status updates
@@ -36,6 +39,30 @@ cd plant-waterer
 
 ### 2. Install Dependencies
 
+#### **Option A: Virtual Environment (Recommended for Raspberry Pi)**
+
+If you encounter "externally-managed-environment" errors on newer Raspberry Pi OS:
+
+```bash
+# Install system dependencies
+sudo apt update
+sudo apt install python3-venv python3-pip
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install Python packages
+pip install -r requirements.txt
+
+# Install RPi.GPIO specifically for Raspberry Pi
+pip install RPi.GPIO
+```
+
+#### **Option B: System-wide Installation**
+
 ```bash
 pip3 install -r requirements.txt
 ```
@@ -50,11 +77,21 @@ sudo usermod -a -G gpio $USER
 
 ### 4. Run the Application
 
+#### **If using Virtual Environment:**
+```bash
+# Activate virtual environment (if not already active)
+source venv/bin/activate
+
+# Run the application
+python app.py
+```
+
+#### **If using System Installation:**
 ```bash
 python3 app.py
 ```
 
-The web interface will be available at `http://your-raspberry-pi-ip:5000`
+The web interface will be available at `http://your-raspberry-pi-ip:5001`
 
 ## Usage
 
@@ -161,25 +198,45 @@ sudo nano /etc/systemd/system/aeroponics.service
 Add the following content:
 ```ini
 [Unit]
-Description=Bill's Aeroponics Web Interface
+Description=Bill's Aeroponics Smart Watering System
 After=network.target
+Wants=network.target
 
 [Service]
 Type=simple
 User=pi
+Group=pi
 WorkingDirectory=/home/pi/plant-waterer
-ExecStart=/usr/bin/python3 app.py
+ExecStart=/home/pi/plant-waterer/venv/bin/python /home/pi/plant-waterer/app.py
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment=PYTHONUNBUFFERED=1
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/pi/plant-waterer
 
 [Install]
 WantedBy=multi-user.target
 ```
 
+**Important**: Make sure to use the correct path to your virtual environment's Python interpreter. If you created the virtual environment in a different location, update the `ExecStart` path accordingly.
+
 Enable and start the service:
 ```bash
 sudo systemctl enable aeroponics.service
 sudo systemctl start aeroponics.service
+sudo systemctl status aeroponics.service
+sudo systemctl stop aeroponics.service
+sudo systemctl disable aeroponics.service
+journalctl -u aeroponics1.service -f
 ```
 
 ## Troubleshooting

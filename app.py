@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -60,6 +61,38 @@ class PinController:
         threading.Thread(target=_deactivate_later, daemon=True).start()
 
 
+# Setup logging
+def _setup_logging():
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # Disable Flask and Werkzeug logging
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    logging.getLogger('flask').setLevel(logging.ERROR)
+    
+    # Configure our custom logging
+    logger = logging.getLogger('aeroponics')
+    logger.setLevel(logging.INFO)
+    
+    # Remove existing handlers to avoid duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Create file handler
+    file_handler = logging.FileHandler('logs/aeroponics.log')
+    file_handler.setLevel(logging.INFO)
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    
+    # Add handler to logger
+    logger.addHandler(file_handler)
+    
+    return logger
+
+logger = _setup_logging()
+
 # Globals
 _scheduler = BackgroundScheduler(daemon=True)
 schedule_items: List[Dict] = []
@@ -81,7 +114,20 @@ def _run_watering(zone_id: int, duration_seconds: int) -> None:
     controller = _get_controller_for_zone(zone_id)
     if controller is None:
         return
+    
+    # Get zone name for logging
+    zone_name = next((z["name"] for z in zones if z["id"] == zone_id), f"Zone {zone_id}")
+    
+    # Log watering start
+    logger.info(f"💧 WATERING STARTED: {zone_name} (GPIO {controller.pin_number}) for {duration_seconds} seconds")
     controller.activate_for(duration_seconds)
+    
+    # Log completion
+    def _log_completion():
+        time.sleep(duration_seconds)
+        logger.info(f"✅ WATERING COMPLETED: {zone_name} (GPIO {controller.pin_number}) - {duration_seconds}s duration")
+    
+    threading.Thread(target=_log_completion, daemon=True).start()
 
 
 def _reschedule_all_jobs() -> None:
@@ -92,10 +138,9 @@ def _reschedule_all_jobs() -> None:
     # Add jobs for enabled schedules
     for s in schedule_items:
         if s.get("enabled"):
-            seconds = int(s["interval_minutes"]) * 60
             _scheduler.add_job(
                 _run_watering,
-                IntervalTrigger(seconds=seconds),
+                IntervalTrigger(minutes=int(s["interval_minutes"])),
                 id=_job_id(s["id"]),
                 replace_existing=True,
                 kwargs={
@@ -125,6 +170,7 @@ def _ensure_gpio17_zone() -> int:
 
 def _load_on_startup() -> None:
     global schedule_items, zones
+    
     zones = load_zones()
     if not zones:
         # Initialize default with GPIO 17 only
@@ -132,6 +178,7 @@ def _load_on_startup() -> None:
             {"id": 1, "name": "GPIO 17", "gpio_pin": 17, "voltage": "3.3V"},
         ]
         save_zones_atomically(zones)
+    
     gpio17_zone_id = _ensure_gpio17_zone()
     _ensure_zone_controllers()
 
@@ -150,6 +197,11 @@ def _load_on_startup() -> None:
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/logs")
+def view_logs():
+    return render_template("logs.html")
 
 
 @app.get("/api/status")
@@ -235,7 +287,7 @@ def delete_zone(zone_id: int):
         return jsonify({"error": "Zone is in use by schedules"}), 400
 
     before = len(zones)
-    zones = [z for z in zones if z["id"] != zone_id]
+    zones = [z for s in zones if s["id"] != zone_id]
     if len(zones) == before:
         return jsonify({"error": "Not found"}), 404
     save_zones_atomically(zones)
@@ -306,12 +358,6 @@ def update_schedule(item_id: int):
         interval_minutes = int(payload["interval_minutes"])
         if not (1 <= interval_minutes <= 1440):
             return jsonify({"error": "interval_minutes must be 1..1440"}), 400
-        target["interval_minutes"] = interval_minutes
-
-    if "duration_seconds" in payload:
-        duration_seconds = int(payload["duration_seconds"])
-        if not (1 <= duration_seconds <= 300):
-            return jsonify({"error": "duration_seconds must be 1..300"}), 400
         target["duration_seconds"] = duration_seconds
 
     if "enabled" in payload:
@@ -340,6 +386,25 @@ def delete_schedule(item_id: int):
     return jsonify({"ok": True})
 
 
+# Logs API
+@app.get("/api/logs")
+def get_logs():
+    try:
+        log_file = "logs/aeroponics.log"
+        if not os.path.exists(log_file):
+            return jsonify({"logs": [], "error": "Log file not found"})
+        
+        with open(log_file, 'r') as f:
+            lines = f.readlines()
+        
+        # Get last 100 lines, reverse order (newest first)
+        logs = lines[-100:][::-1]
+        return jsonify({"logs": logs})
+    except Exception as e:
+        logger.error(f"Error reading logs: {e}")
+        return jsonify({"logs": [], "error": str(e)})
+
+
 # Quick control API
 @app.post("/api/pin/activate")
 def api_pin_activate():
@@ -354,6 +419,9 @@ def api_pin_activate():
     if zone_id not in {z["id"] for z in zones}:
         return jsonify({"error": "Invalid zone_id"}), 400
 
+    zone_name = next((z["name"] for z in zones if z["id"] == zone_id), f"Zone {zone_id}")
+    logger.info(f"🎯 QUICK CONTROL: {zone_name} (GPIO {zone_controllers[zone_id].pin_number}) for {duration_seconds} seconds")
+    
     _run_watering(zone_id=zone_id, duration_seconds=duration_seconds)
     return jsonify({"ok": True})
 
@@ -372,5 +440,6 @@ _start_scheduler_once()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # Disable Flask debug logging
+    app.run(host="0.0.0.0", port=port, debug=False)
 

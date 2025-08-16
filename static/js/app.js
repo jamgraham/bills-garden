@@ -350,7 +350,8 @@ function updateStatus() {
             const statusDot = document.getElementById('statusDot');
             const statusText = document.getElementById('statusText');
             
-            if (data.system_online) {
+            // Check if scheduler is running
+            if (data.scheduler_running) {
                 statusDot.style.background = '#4CAF50';
                 statusText.textContent = 'System Online';
             } else {
