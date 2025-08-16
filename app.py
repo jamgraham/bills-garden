@@ -358,7 +358,13 @@ def update_schedule(item_id: int):
         interval_minutes = int(payload["interval_minutes"])
         if not (1 <= interval_minutes <= 1440):
             return jsonify({"error": "interval_minutes must be 1..1440"}), 400
-        target["duration_seconds"] = duration_seconds
+        target["interval_minutes"] = interval_minutes  # FIXED: was duration_seconds
+
+    if "duration_seconds" in payload:
+        duration_seconds = int(payload["duration_seconds"])
+        if not (1 <= duration_seconds <= 300):
+            return jsonify({"error": "duration_seconds must be 1..300"}), 400
+        target["duration_seconds"] = duration_seconds  # FIXED: was missing
 
     if "enabled" in payload:
         target["enabled"] = bool(payload["enabled"])
