@@ -26,4 +26,3 @@ export LOG_LEVEL=INFO
 # Start the application
 echo "Starting Bills Aeroponics app..."
 exec "$PROJECT_DIR/venv/bin/python" "$PROJECT_DIR/app.py"
-

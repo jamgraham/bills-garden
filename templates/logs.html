@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Logs - Bill's Aeroponics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .logs-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .logs-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c5530;
+            margin: 0;
+        }
+        
+        .logs-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .auto-refresh input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4CAF50;
+        }
+        
+        .logs-content {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #00ff00;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px solid #333;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #888;
+            margin-right: 10px;
+        }
+        
+        .log-level {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .log-level.info {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .log-level.error {
+            background: #f44336;
+            color: white;
+        }
+        
+        .log-level.warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .log-entry .emoji {
+            font-size: 16px;
+            margin-right: 8px;
+        }
+        
+        .log-message {
+            color: #e0e0e0;
+        }
+        
+        .log-message .emoji {
+            margin-right: 5px;
+        }
+        
+        .back-btn {
+            background: linear-gradient(135deg, #666, #555);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 102, 102, 0.4);
+        }
+        
+        .no-logs {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            padding: 40px;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ffcdd2;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logs-container">
+            <div class="logs-header">
+                <h1 class="logs-title">📋 System Logs</h1>
+                <div class="logs-controls">
+                    <div class="auto-refresh">
+                        <input type="checkbox" id="autoRefresh" checked>
+                        <label for="autoRefresh">Auto-refresh</label>
+                    </div>
+                    <button class="refresh-btn" onclick="refreshLogs()">🔄 Refresh</button>
+                    <a href="/" class="back-btn">← Back to Dashboard</a>
+                </div>
+            </div>
+            
+            <div id="logsContent" class="logs-content">
+                <div class="no-logs">Loading logs...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval;
+        
+        function refreshLogs() {
+            fetch('/api/logs')
+                .then(response => response.json())
+                .then(data => {
+                    const logsContent = document.getElementById('logsContent');
+                    
+                    if (data.error) {
+                        logsContent.innerHTML = `<div class="error-message">Error loading logs: ${data.error}</div>`;
+                        return;
+                    }
+                    
+                    if (!data.logs || data.logs.length === 0) {
+                        logsContent.innerHTML = '<div class="no-logs">No logs found</div>';
+                        return;
+                    }
+                    
+                    const logsHtml = data.logs.map(log => {
+                        const parts = log.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (\w+) - (.+)$/);
+                        if (parts) {
+                            const [, timestamp, level, message] = parts;
+                            const levelClass = level.toLowerCase();
+                            const emoji = message.match(/^([💧✅🎯])/);
+                            const emojiHtml = emoji ? `<span class="emoji">${emoji[1]}</span>` : '';
+                            
+                            return `
+                                <div class="log-entry">
+                                    <span class="log-time">${timestamp}</span>
+                                    <span class="log-level ${levelClass}">${level.toUpperCase()}</span>
+                                    <span class="log-message">${emojiHtml}${message.replace(/^[💧✅🎯]/, '')}</span>
+                                </div>
+                            `;
+                        } else {
+                            return `<div class="log-entry">${log}</div>`;
+                        }
+                    }).join('');
+                    
+                    logsContent.innerHTML = logsHtml;
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    document.getElementById('logsContent').innerHTML = 
+                        '<div class="error-message">Error loading logs. Please try again.</div>';
+                });
+        }
+        
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(refreshLogs, 5000); // Refresh every 5 seconds
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+        
+        // Initial load
+        refreshLogs();
+        
+        // Auto-refresh handling
+        document.getElementById('autoRefresh').addEventListener('change', function() {
+            if (this.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
+        
+        // Start auto-refresh
+        startAutoRefresh();
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>

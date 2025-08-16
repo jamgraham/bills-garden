@@ -119,6 +119,28 @@ body {
 .status-section {
     display: flex;
     align-items: center;
+    gap: 20px;
+}
+
+.logs-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+    text-decoration: none;
+    border-radius: 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.logs-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+    color: white;
+    text-decoration: none;
 }
 
 .status-indicator {
