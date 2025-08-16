@@ -1,0 +1,33 @@
+[Unit]
+Description=Bills Aeroponics Smart Watering System
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=james
+Group=james
+WorkingDirectory=/home/james/Documents/bills-garden/bills-garden
+ExecStart=/bin/bash -c "cd /home/james/Documents/bills-garden/bills-garden && source venv/bin/activate && exec venv/bin/python app.py"
+Restart=always
+RestartSec=10
+
+# Simple logging to journal only
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment=PYTHONUNBUFFERED=1
+Environment=FLASK_ENV=production
+Environment=LOG_LEVEL=INFO
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/james/Documents/bills-garden/bills-garden
+
+[Install]
+WantedBy=multi-user.target
+
