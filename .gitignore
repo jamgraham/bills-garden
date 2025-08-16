@@ -1,3 +1,6 @@
+# Schedules
+schedule.json
+zones.json
 # Logs
 logs/
 *.log
