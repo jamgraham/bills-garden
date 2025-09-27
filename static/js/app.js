@@ -82,11 +82,8 @@ function renderZones() {
 }
 
 function populateZoneDropdowns() {
-    // Filter zones to only show GPIO 17 and 18
-    const availableZones = zones.filter(zone => zone.gpio_pin === 17 || zone.gpio_pin === 18);
-    
-    // If no GPIO 17 or 18 zones exist, show all zones as fallback
-    const zonesToShow = availableZones.length > 0 ? availableZones : zones;
+    // Show all available zones
+    const zonesToShow = zones;
     
     const zoneSelect = document.getElementById('zoneSelect');
     const scheduleZone = document.getElementById('scheduleZone');
