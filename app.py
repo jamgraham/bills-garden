@@ -466,9 +466,9 @@ def api_update():
         
         logger.info(f"✅ Git pull completed: {result.stdout.strip()}")
         
-        # Schedule server restart in a separate thread after a short delay
+        # Schedule server restart in a separate thread after a longer delay
         def restart_server():
-            time.sleep(2)  # Give time for response to be sent
+            time.sleep(5)  # Give more time for response to be sent and processed
             logger.info("🔄 RESTARTING SERVER")
             os.execv(sys.executable, [sys.executable] + sys.argv)
         

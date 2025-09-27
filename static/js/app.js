@@ -425,6 +425,39 @@ function showToast(message, type = 'info') {
     }, 5000);
 }
 
+// Reconnection helper with retry logic
+function attemptReconnect(maxRetries = 3, currentRetry = 0) {
+    // Try to check if server is back online
+    fetch('/api/status')
+        .then(response => {
+            if (response.ok) {
+                showToast('Connection restored! Reloading page...', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error('Server not ready');
+            }
+        })
+        .catch(error => {
+            currentRetry++;
+            if (currentRetry < maxRetries) {
+                showToast(`Reconnect attempt ${currentRetry}/${maxRetries}...`, 'info');
+                setTimeout(() => {
+                    attemptReconnect(maxRetries, currentRetry);
+                }, 3000);
+            } else {
+                showToast('Unable to reconnect automatically. Please refresh manually.', 'error');
+                // Restore button state as fallback
+                const updateBtn = document.querySelector('.update-btn');
+                if (updateBtn) {
+                    updateBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Update';
+                    updateBtn.disabled = false;
+                }
+            }
+        });
+}
+
 // Update App
 function updateApp() {
     if (!confirm('This will pull the latest changes from git and restart the server. Continue?')) {
@@ -455,14 +488,15 @@ function updateApp() {
     .then(data => {
         showToast('Update successful! Server restarting...', 'success');
         
-        // Wait a moment, then try to reconnect
+        // Wait longer for the server to restart properly
         setTimeout(() => {
-            showToast('Reconnecting to server...', 'info');
-            // Try to reload the page after the server restarts
+            showToast('Server restarting, please wait...', 'info');
+            // Wait more time for server to fully restart before reconnecting
             setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        }, 2000);
+                showToast('Reconnecting to server...', 'info');
+                attemptReconnect();
+            }, 5000);
+        }, 3000);
     })
     .catch(error => {
         console.error('Error updating app:', error);
