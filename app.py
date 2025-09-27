@@ -217,6 +217,79 @@ def api_status():
     )
 
 
+@app.get("/api/debug")
+def api_debug():
+    """Get debug information including git status and system info"""
+    debug_info = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "system": {
+            "platform": os.name,
+            "python_version": sys.version.split()[0],
+            "working_directory": os.getcwd(),
+            "on_pi": ON_PI
+        },
+        "git": {
+            "available": False,
+            "branch": "unknown",
+            "commit_hash": "unknown",
+            "commit_message": "unknown",
+            "status": "unknown",
+            "remote_url": "unknown"
+        },
+        "app": {
+            "zones_count": len(zones),
+            "schedules_count": len(schedule_items),
+            "active_schedules": len([s for s in schedule_items if s.get("enabled")])
+        }
+    }
+    
+    # Try to get git information
+    try:
+        # Check if we're in a git repository
+        result = subprocess.run(['git', 'rev-parse', '--git-dir'], 
+                              capture_output=True, text=True, cwd='.')
+        if result.returncode == 0:
+            debug_info["git"]["available"] = True
+            
+            # Get current branch
+            result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["branch"] = result.stdout.strip()
+            
+            # Get latest commit hash (short)
+            result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["commit_hash"] = result.stdout.strip()
+            
+            # Get latest commit message
+            result = subprocess.run(['git', 'log', '-1', '--pretty=format:%s'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["commit_message"] = result.stdout.strip()
+            
+            # Get git status
+            result = subprocess.run(['git', 'status', '--porcelain'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                if result.stdout.strip():
+                    debug_info["git"]["status"] = "modified"
+                else:
+                    debug_info["git"]["status"] = "clean"
+            
+            # Get remote URL
+            result = subprocess.run(['git', 'config', '--get', 'remote.origin.url'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["remote_url"] = result.stdout.strip()
+                
+    except Exception as e:
+        logger.warning(f"Failed to get git info: {e}")
+    
+    return jsonify(debug_info)
+
+
 # Zones API
 @app.get("/api/zones")
 def get_zones():

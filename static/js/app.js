@@ -34,6 +34,7 @@ function loadInitialData() {
     loadZones();
     loadSchedules();
     startStatusUpdates();
+    loadDebugInfo();
 }
 
 // Zone Management
@@ -409,6 +410,58 @@ function updateStatus() {
             statusDot.style.background = '#f44336';
             statusText.textContent = 'Connection Error';
         });
+}
+
+// Debug Info
+function loadDebugInfo() {
+    fetch('/api/debug')
+        .then(response => response.json())
+        .then(data => {
+            updateDebugDisplay(data);
+        })
+        .catch(error => {
+            console.error('Error loading debug info:', error);
+            // Set fallback values
+            document.getElementById('debugBranch').textContent = 'error';
+            document.getElementById('debugCommit').textContent = 'error';
+            document.getElementById('debugStatus').textContent = 'error';
+            document.getElementById('debugPlatform').textContent = 'error';
+            document.getElementById('debugTimestamp').textContent = 'error';
+        });
+}
+
+function updateDebugDisplay(data) {
+    // Git branch with status indicator
+    const branchText = data.git.available ? 
+        `${data.git.branch}${data.git.status === 'modified' ? '*' : ''}` : 
+        'no git';
+    document.getElementById('debugBranch').textContent = branchText;
+    
+    // Commit hash and message
+    const commitText = data.git.available ? 
+        `${data.git.commit_hash}` : 
+        'n/a';
+    document.getElementById('debugCommit').textContent = commitText;
+    document.getElementById('debugCommit').title = data.git.commit_message || '';
+    
+    // Status
+    const statusText = data.git.available ? 
+        data.git.status : 
+        'unknown';
+    document.getElementById('debugStatus').textContent = statusText;
+    
+    // Platform info
+    const platformText = `${data.system.on_pi ? 'Pi' : 'Dev'} (Python ${data.system.python_version})`;
+    document.getElementById('debugPlatform').textContent = platformText;
+    
+    // Timestamp
+    const timestamp = new Date(data.timestamp);
+    const timeString = timestamp.toLocaleTimeString();
+    document.getElementById('debugTimestamp').textContent = timeString;
+    
+    // App stats in title
+    const appStats = `${data.app.zones_count} zones, ${data.app.active_schedules}/${data.app.schedules_count} schedules active`;
+    document.getElementById('debugTimestamp').title = appStats;
 }
 
 // Toast Notifications
