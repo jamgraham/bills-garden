@@ -48,9 +48,16 @@ class PinController:
 
     def _set_state(self, state: bool) -> None:
         with self._lock:
+            logger.info(f"🔍 DEBUG: Setting GPIO {self.pin_number} to {'HIGH' if state else 'LOW'} (ON_PI={ON_PI})")
             self._pin_state = state
             if ON_PI:
-                GPIO.output(self.pin_number, GPIO.HIGH if state else GPIO.LOW)
+                try:
+                    GPIO.output(self.pin_number, GPIO.HIGH if state else GPIO.LOW)
+                    logger.info(f"✅ GPIO {self.pin_number} set successfully")
+                except Exception as e:
+                    logger.error(f"❌ ERROR setting GPIO {self.pin_number}: {e}")
+            else:
+                logger.info(f"🔧 DEV MODE: Would set GPIO {self.pin_number} to {'HIGH' if state else 'LOW'}")
 
     def activate_for(self, duration_seconds: int) -> None:
         duration_seconds = max(1, min(300, int(duration_seconds)))
@@ -113,8 +120,13 @@ def _get_controller_for_zone(zone_id: int) -> Optional[PinController]:
 
 
 def _run_watering(zone_id: int, duration_seconds: int) -> None:
+    logger.info(f"🔍 DEBUG: _run_watering called for zone_id={zone_id}, duration={duration_seconds}")
+    logger.info(f"🔍 DEBUG: Available zone_controllers: {list(zone_controllers.keys())}")
+    
     controller = _get_controller_for_zone(zone_id)
     if controller is None:
+        logger.error(f"❌ ERROR: No controller found for zone_id {zone_id}")
+        logger.error(f"❌ ERROR: Available zones: {[z['id'] for z in zones]}")
         return
     
     # Get zone name for logging
@@ -122,12 +134,17 @@ def _run_watering(zone_id: int, duration_seconds: int) -> None:
     
     # Log watering start
     logger.info(f"💧 WATERING STARTED: {zone_name} (GPIO {controller.pin_number}) for {duration_seconds} seconds")
+    logger.info(f"🔍 DEBUG: ON_PI={ON_PI}, pin_state_before={controller.pin_state}")
+    
     controller.activate_for(duration_seconds)
+    
+    logger.info(f"🔍 DEBUG: pin_state_after_activate={controller.pin_state}")
     
     # Log completion
     def _log_completion():
         time.sleep(duration_seconds)
         logger.info(f"✅ WATERING COMPLETED: {zone_name} (GPIO {controller.pin_number}) - {duration_seconds}s duration")
+        logger.info(f"🔍 DEBUG: pin_state_after_completion={controller.pin_state}")
     
     threading.Thread(target=_log_completion, daemon=True).start()
 
