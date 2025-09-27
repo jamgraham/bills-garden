@@ -39,6 +39,9 @@
                     <a href="/logs" class="logs-link">
                         <i class="fas fa-file-alt"></i> View Logs
                     </a>
+                    <button onclick="updateApp()" class="update-btn" title="Pull latest changes and restart server">
+                        <i class="fas fa-sync-alt"></i> Update
+                    </button>
                     <div class="status-indicator">
                         <div id="statusDot" class="status-dot"></div>
                         <span id="statusText" class="status-text">System Online</span>
@@ -205,6 +208,32 @@
             </div>
         </div>
     </div>
+
+    <!-- Debug Footer -->
+    <footer class="debug-footer">
+        <div class="debug-content">
+            <div class="debug-section">
+                <span class="debug-label">Branch:</span>
+                <span id="debugBranch" class="debug-value">loading...</span>
+            </div>
+            <div class="debug-section">
+                <span class="debug-label">Commit:</span>
+                <span id="debugCommit" class="debug-value">loading...</span>
+            </div>
+            <div class="debug-section">
+                <span class="debug-label">Status:</span>
+                <span id="debugStatus" class="debug-value">loading...</span>
+            </div>
+            <div class="debug-section">
+                <span class="debug-label">Platform:</span>
+                <span id="debugPlatform" class="debug-value">loading...</span>
+            </div>
+            <div class="debug-section">
+                <span class="debug-label">Updated:</span>
+                <span id="debugTimestamp" class="debug-value">loading...</span>
+            </div>
+        </div>
+    </footer>
 
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>

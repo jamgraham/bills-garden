@@ -34,6 +34,7 @@ function loadInitialData() {
     loadZones();
     loadSchedules();
     startStatusUpdates();
+    loadDebugInfo();
 }
 
 // Zone Management
@@ -112,6 +113,49 @@ function showZonesModal() {
 
 function hideZonesModal() {
     document.getElementById('zonesModal').classList.remove('show');
+}
+
+function editZone(zoneId) {
+    const zone = zones.find(z => z.id === zoneId);
+    if (!zone) return;
+    
+    const newName = prompt('Enter new zone name:', zone.name);
+    if (newName === null || newName.trim() === '') return;
+    
+    const newGpioPin = prompt('Enter new GPIO pin:', zone.gpio_pin);
+    if (newGpioPin === null || newGpioPin.trim() === '') return;
+    
+    const newVoltage = prompt('Enter voltage (optional):', zone.voltage || '');
+    
+    const updateData = {
+        name: newName.trim(),
+        gpio_pin: parseInt(newGpioPin),
+        voltage: newVoltage ? newVoltage.trim() : null
+    };
+    
+    fetch(`/api/zones/${zoneId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to update zone');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showToast('Zone updated successfully', 'success');
+        loadZones();
+    })
+    .catch(error => {
+        console.error('Error updating zone:', error);
+        showToast('Error updating zone', 'error');
+    });
 }
 
 function deleteZone(zoneId) {
@@ -368,6 +412,58 @@ function updateStatus() {
         });
 }
 
+// Debug Info
+function loadDebugInfo() {
+    fetch('/api/debug')
+        .then(response => response.json())
+        .then(data => {
+            updateDebugDisplay(data);
+        })
+        .catch(error => {
+            console.error('Error loading debug info:', error);
+            // Set fallback values
+            document.getElementById('debugBranch').textContent = 'error';
+            document.getElementById('debugCommit').textContent = 'error';
+            document.getElementById('debugStatus').textContent = 'error';
+            document.getElementById('debugPlatform').textContent = 'error';
+            document.getElementById('debugTimestamp').textContent = 'error';
+        });
+}
+
+function updateDebugDisplay(data) {
+    // Git branch with status indicator
+    const branchText = data.git.available ? 
+        `${data.git.branch}${data.git.status === 'modified' ? '*' : ''}` : 
+        'no git';
+    document.getElementById('debugBranch').textContent = branchText;
+    
+    // Commit hash and message
+    const commitText = data.git.available ? 
+        `${data.git.commit_hash}` : 
+        'n/a';
+    document.getElementById('debugCommit').textContent = commitText;
+    document.getElementById('debugCommit').title = data.git.commit_message || '';
+    
+    // Status
+    const statusText = data.git.available ? 
+        data.git.status : 
+        'unknown';
+    document.getElementById('debugStatus').textContent = statusText;
+    
+    // Platform info
+    const platformText = `${data.system.on_pi ? 'Pi' : 'Dev'} (Python ${data.system.python_version})`;
+    document.getElementById('debugPlatform').textContent = platformText;
+    
+    // Timestamp
+    const timestamp = new Date(data.timestamp);
+    const timeString = timestamp.toLocaleTimeString();
+    document.getElementById('debugTimestamp').textContent = timeString;
+    
+    // App stats in title
+    const appStats = `${data.app.zones_count} zones, ${data.app.active_schedules}/${data.app.schedules_count} schedules active`;
+    document.getElementById('debugTimestamp').title = appStats;
+}
+
 // Toast Notifications
 function showToast(message, type = 'info') {
     const toastContainer = document.getElementById('toastContainer');
@@ -380,6 +476,89 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.remove();
     }, 5000);
+}
+
+// Reconnection helper with retry logic
+function attemptReconnect(maxRetries = 3, currentRetry = 0) {
+    // Try to check if server is back online
+    fetch('/api/status')
+        .then(response => {
+            if (response.ok) {
+                showToast('Connection restored! Reloading page...', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error('Server not ready');
+            }
+        })
+        .catch(error => {
+            currentRetry++;
+            if (currentRetry < maxRetries) {
+                showToast(`Reconnect attempt ${currentRetry}/${maxRetries}...`, 'info');
+                setTimeout(() => {
+                    attemptReconnect(maxRetries, currentRetry);
+                }, 3000);
+            } else {
+                showToast('Unable to reconnect automatically. Please refresh manually.', 'error');
+                // Restore button state as fallback
+                const updateBtn = document.querySelector('.update-btn');
+                if (updateBtn) {
+                    updateBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Update';
+                    updateBtn.disabled = false;
+                }
+            }
+        });
+}
+
+// Update App
+function updateApp() {
+    if (!confirm('This will pull the latest changes from git and restart the server. Continue?')) {
+        return;
+    }
+    
+    const updateBtn = document.querySelector('.update-btn');
+    const originalText = updateBtn.innerHTML;
+    
+    // Show loading state
+    updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    updateBtn.disabled = true;
+    
+    fetch('/api/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to update app');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showToast('Update successful! Server restarting...', 'success');
+        
+        // Wait longer for the server to restart properly
+        setTimeout(() => {
+            showToast('Server restarting, please wait...', 'info');
+            // Wait more time for server to fully restart before reconnecting
+            setTimeout(() => {
+                showToast('Reconnecting to server...', 'info');
+                attemptReconnect();
+            }, 5000);
+        }, 3000);
+    })
+    .catch(error => {
+        console.error('Error updating app:', error);
+        showToast(`Update failed: ${error.message}`, 'error');
+        
+        // Restore button state
+        updateBtn.innerHTML = originalText;
+        updateBtn.disabled = false;
+    });
 }
 
 // Event Listeners

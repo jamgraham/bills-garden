@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import threading
 import time
 import logging
@@ -215,6 +217,79 @@ def api_status():
     )
 
 
+@app.get("/api/debug")
+def api_debug():
+    """Get debug information including git status and system info"""
+    debug_info = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "system": {
+            "platform": os.name,
+            "python_version": sys.version.split()[0],
+            "working_directory": os.getcwd(),
+            "on_pi": ON_PI
+        },
+        "git": {
+            "available": False,
+            "branch": "unknown",
+            "commit_hash": "unknown",
+            "commit_message": "unknown",
+            "status": "unknown",
+            "remote_url": "unknown"
+        },
+        "app": {
+            "zones_count": len(zones),
+            "schedules_count": len(schedule_items),
+            "active_schedules": len([s for s in schedule_items if s.get("enabled")])
+        }
+    }
+    
+    # Try to get git information
+    try:
+        # Check if we're in a git repository
+        result = subprocess.run(['git', 'rev-parse', '--git-dir'], 
+                              capture_output=True, text=True, cwd='.')
+        if result.returncode == 0:
+            debug_info["git"]["available"] = True
+            
+            # Get current branch
+            result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["branch"] = result.stdout.strip()
+            
+            # Get latest commit hash (short)
+            result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["commit_hash"] = result.stdout.strip()
+            
+            # Get latest commit message
+            result = subprocess.run(['git', 'log', '-1', '--pretty=format:%s'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["commit_message"] = result.stdout.strip()
+            
+            # Get git status
+            result = subprocess.run(['git', 'status', '--porcelain'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                if result.stdout.strip():
+                    debug_info["git"]["status"] = "modified"
+                else:
+                    debug_info["git"]["status"] = "clean"
+            
+            # Get remote URL
+            result = subprocess.run(['git', 'config', '--get', 'remote.origin.url'], 
+                                  capture_output=True, text=True, cwd='.')
+            if result.returncode == 0:
+                debug_info["git"]["remote_url"] = result.stdout.strip()
+                
+    except Exception as e:
+        logger.warning(f"Failed to get git info: {e}")
+    
+    return jsonify(debug_info)
+
+
 # Zones API
 @app.get("/api/zones")
 def get_zones():
@@ -287,7 +362,7 @@ def delete_zone(zone_id: int):
         return jsonify({"error": "Zone is in use by schedules"}), 400
 
     before = len(zones)
-    zones = [z for s in zones if s["id"] != zone_id]
+    zones = [z for z in zones if z["id"] != zone_id]
     if len(zones) == before:
         return jsonify({"error": "Not found"}), 404
     save_zones_atomically(zones)
@@ -432,6 +507,68 @@ def api_pin_activate():
     return jsonify({"ok": True})
 
 
+# Update API
+@app.post("/api/update")
+def api_update():
+    try:
+        logger.info("🔄 UPDATE REQUESTED: Starting git pull and server restart")
+        
+        # Check if we're in a git repository
+        result = subprocess.run(['git', 'status'], capture_output=True, text=True, cwd='.')
+        if result.returncode != 0:
+            return jsonify({"error": "Not in a git repository"}), 400
+        
+        # Check current branch
+        result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], capture_output=True, text=True, cwd='.')
+        current_branch = result.stdout.strip()
+        
+        # Switch to main branch if not already on it
+        if current_branch != 'main':
+            logger.info(f"📋 Switching from {current_branch} to main branch")
+            result = subprocess.run(['git', 'checkout', 'main'], capture_output=True, text=True, cwd='.')
+            if result.returncode != 0:
+                logger.error(f"❌ Failed to checkout main: {result.stderr}")
+                return jsonify({"error": f"Failed to checkout main: {result.stderr}"}), 500
+        
+        # Pull latest changes
+        logger.info("⬇️ Pulling latest changes from origin/main")
+        result = subprocess.run(['git', 'pull', 'origin', 'main'], capture_output=True, text=True, cwd='.')
+        if result.returncode != 0:
+            logger.error(f"❌ Git pull failed: {result.stderr}")
+            return jsonify({"error": f"Git pull failed: {result.stderr}"}), 500
+        
+        logger.info(f"✅ Git pull completed: {result.stdout.strip()}")
+        
+        # Schedule clean shutdown after response is sent
+        def shutdown_server():
+            time.sleep(5)  # Give time for response to be sent
+            logger.info("🛑 SHUTTING DOWN SERVER - External restart required")
+            
+            # Launch external restart script
+            try:
+                logger.info("🔧 Starting external restart script")
+                subprocess.Popen(['bash', 'restart.sh'], cwd=os.getcwd())
+                time.sleep(1)
+            except Exception as e:
+                logger.error(f"❌ Failed to start restart script: {e}")
+            
+            # Clean exit with special code indicating successful update
+            logger.info("💀 Exiting cleanly for restart")
+            sys.exit(3)  # Exit code 3 = successful update, restart needed
+        
+        threading.Thread(target=shutdown_server, daemon=True).start()
+        
+        return jsonify({
+            "ok": True, 
+            "message": "Update completed successfully. Server restarting...",
+            "git_output": result.stdout.strip()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Update failed: {str(e)}")
+        return jsonify({"error": f"Update failed: {str(e)}"}), 500
+
+
 # Startup
 _load_on_startup()
 
@@ -446,6 +583,23 @@ _start_scheduler_once()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
+    
+    # Configure socket options to allow reuse
+    import socket
+    from werkzeug.serving import WSGIRequestHandler
+    
+    # Set socket reuse options
+    original_socket = socket.socket
+    def socket_with_reuse(*args, **kwargs):
+        sock = original_socket(*args, **kwargs)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass  # SO_REUSEPORT not available on all systems
+        return sock
+    socket.socket = socket_with_reuse
+    
     # Disable Flask debug logging
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
 
