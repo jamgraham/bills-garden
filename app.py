@@ -470,7 +470,42 @@ def api_update():
         def restart_server():
             time.sleep(5)  # Give more time for response to be sent and processed
             logger.info("🔄 RESTARTING SERVER")
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            
+            # Try different restart strategies
+            try:
+                # First try: use os.execv with proper cleanup
+                import signal
+                logger.info("🛑 Attempting graceful restart")
+                
+                # Close any existing connections and release the port
+                if hasattr(app, 'shutdown'):
+                    app.shutdown()
+                
+                # Wait a bit for port to be released
+                time.sleep(2)
+                
+                # Restart process
+                python_executable = sys.executable
+                script_path = os.path.abspath(__file__)
+                logger.info(f"🔄 Executing: {python_executable} {script_path}")
+                
+                # Use os.execv to replace current process
+                os.execv(python_executable, [python_executable, script_path])
+                
+            except Exception as e:
+                logger.error(f"❌ Restart failed: {e}")
+                
+                # Fallback: try using external restart script
+                try:
+                    logger.info("🔧 Attempting external restart script")
+                    subprocess.Popen(['bash', 'restart.sh'], cwd=os.getcwd())
+                    time.sleep(1)
+                    sys.exit(0)
+                except Exception as script_error:
+                    logger.error(f"❌ External restart failed: {script_error}")
+                    # Final fallback: just exit
+                    logger.info("💀 Exiting process - manual restart required")
+                    sys.exit(1)
         
         threading.Thread(target=restart_server, daemon=True).start()
         
