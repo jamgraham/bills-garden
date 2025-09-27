@@ -601,22 +601,6 @@ _start_scheduler_once()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
     
-    # Configure socket options to allow reuse
-    import socket
-    from werkzeug.serving import WSGIRequestHandler
-    
-    # Set socket reuse options
-    original_socket = socket.socket
-    def socket_with_reuse(*args, **kwargs):
-        sock = original_socket(*args, **kwargs)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        except AttributeError:
-            pass  # SO_REUSEPORT not available on all systems
-        return sock
-    socket.socket = socket_with_reuse
-    
-    # Disable Flask debug logging
+    # Disable Flask debug logging and enable socket reuse
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
 
