@@ -748,20 +748,34 @@ body {
     }
     
     .debug-footer {
-        flex-direction: column;
-        padding: 0.5rem 1rem;
-        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.6rem;
     }
     
     .debug-content {
-        flex-direction: column;
-        gap: 0.25rem;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
     }
     
     .debug-section {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.1rem;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    
+    .debug-label {
+        display: none;
+    }
+    
+    .debug-value {
+        font-size: 0.6rem;
+    }
+    
+    /* Show only essential info on mobile */
+    .debug-section:nth-child(n+4) {
+        display: none;
     }
 }
 
