@@ -466,48 +466,24 @@ def api_update():
         
         logger.info(f"✅ Git pull completed: {result.stdout.strip()}")
         
-        # Schedule server restart in a separate thread after a longer delay
-        def restart_server():
-            time.sleep(5)  # Give more time for response to be sent and processed
-            logger.info("🔄 RESTARTING SERVER")
+        # Schedule clean shutdown after response is sent
+        def shutdown_server():
+            time.sleep(5)  # Give time for response to be sent
+            logger.info("🛑 SHUTTING DOWN SERVER - External restart required")
             
-            # Try different restart strategies
+            # Launch external restart script
             try:
-                # First try: use os.execv with proper cleanup
-                import signal
-                logger.info("🛑 Attempting graceful restart")
-                
-                # Close any existing connections and release the port
-                if hasattr(app, 'shutdown'):
-                    app.shutdown()
-                
-                # Wait a bit for port to be released
-                time.sleep(2)
-                
-                # Restart process
-                python_executable = sys.executable
-                script_path = os.path.abspath(__file__)
-                logger.info(f"🔄 Executing: {python_executable} {script_path}")
-                
-                # Use os.execv to replace current process
-                os.execv(python_executable, [python_executable, script_path])
-                
+                logger.info("🔧 Starting external restart script")
+                subprocess.Popen(['bash', 'restart.sh'], cwd=os.getcwd())
+                time.sleep(1)
             except Exception as e:
-                logger.error(f"❌ Restart failed: {e}")
-                
-                # Fallback: try using external restart script
-                try:
-                    logger.info("🔧 Attempting external restart script")
-                    subprocess.Popen(['bash', 'restart.sh'], cwd=os.getcwd())
-                    time.sleep(1)
-                    sys.exit(0)
-                except Exception as script_error:
-                    logger.error(f"❌ External restart failed: {script_error}")
-                    # Final fallback: just exit
-                    logger.info("💀 Exiting process - manual restart required")
-                    sys.exit(1)
+                logger.error(f"❌ Failed to start restart script: {e}")
+            
+            # Clean exit with special code indicating successful update
+            logger.info("💀 Exiting cleanly for restart")
+            sys.exit(3)  # Exit code 3 = successful update, restart needed
         
-        threading.Thread(target=restart_server, daemon=True).start()
+        threading.Thread(target=shutdown_server, daemon=True).start()
         
         return jsonify({
             "ok": True, 
@@ -534,6 +510,23 @@ _start_scheduler_once()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
+    
+    # Configure socket options to allow reuse
+    import socket
+    from werkzeug.serving import WSGIRequestHandler
+    
+    # Set socket reuse options
+    original_socket = socket.socket
+    def socket_with_reuse(*args, **kwargs):
+        sock = original_socket(*args, **kwargs)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass  # SO_REUSEPORT not available on all systems
+        return sock
+    socket.socket = socket_with_reuse
+    
     # Disable Flask debug logging
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
 
