@@ -114,6 +114,49 @@ function hideZonesModal() {
     document.getElementById('zonesModal').classList.remove('show');
 }
 
+function editZone(zoneId) {
+    const zone = zones.find(z => z.id === zoneId);
+    if (!zone) return;
+    
+    const newName = prompt('Enter new zone name:', zone.name);
+    if (newName === null || newName.trim() === '') return;
+    
+    const newGpioPin = prompt('Enter new GPIO pin:', zone.gpio_pin);
+    if (newGpioPin === null || newGpioPin.trim() === '') return;
+    
+    const newVoltage = prompt('Enter voltage (optional):', zone.voltage || '');
+    
+    const updateData = {
+        name: newName.trim(),
+        gpio_pin: parseInt(newGpioPin),
+        voltage: newVoltage ? newVoltage.trim() : null
+    };
+    
+    fetch(`/api/zones/${zoneId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to update zone');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showToast('Zone updated successfully', 'success');
+        loadZones();
+    })
+    .catch(error => {
+        console.error('Error updating zone:', error);
+        showToast('Error updating zone', 'error');
+    });
+}
+
 function deleteZone(zoneId) {
     if (!confirm('Are you sure you want to delete this zone? This action cannot be undone.')) {
         return;
@@ -380,6 +423,55 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.remove();
     }, 5000);
+}
+
+// Update App
+function updateApp() {
+    if (!confirm('This will pull the latest changes from git and restart the server. Continue?')) {
+        return;
+    }
+    
+    const updateBtn = document.querySelector('.update-btn');
+    const originalText = updateBtn.innerHTML;
+    
+    // Show loading state
+    updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    updateBtn.disabled = true;
+    
+    fetch('/api/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to update app');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showToast('Update successful! Server restarting...', 'success');
+        
+        // Wait a moment, then try to reconnect
+        setTimeout(() => {
+            showToast('Reconnecting to server...', 'info');
+            // Try to reload the page after the server restarts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        }, 2000);
+    })
+    .catch(error => {
+        console.error('Error updating app:', error);
+        showToast(`Update failed: ${error.message}`, 'error');
+        
+        // Restore button state
+        updateBtn.innerHTML = originalText;
+        updateBtn.disabled = false;
+    });
 }
 
 // Event Listeners

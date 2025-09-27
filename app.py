@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import threading
 import time
 import logging
@@ -287,7 +289,7 @@ def delete_zone(zone_id: int):
         return jsonify({"error": "Zone is in use by schedules"}), 400
 
     before = len(zones)
-    zones = [z for s in zones if s["id"] != zone_id]
+    zones = [z for z in zones if z["id"] != zone_id]
     if len(zones) == before:
         return jsonify({"error": "Not found"}), 404
     save_zones_atomically(zones)
@@ -430,6 +432,57 @@ def api_pin_activate():
     
     _run_watering(zone_id=zone_id, duration_seconds=duration_seconds)
     return jsonify({"ok": True})
+
+
+# Update API
+@app.post("/api/update")
+def api_update():
+    try:
+        logger.info("🔄 UPDATE REQUESTED: Starting git pull and server restart")
+        
+        # Check if we're in a git repository
+        result = subprocess.run(['git', 'status'], capture_output=True, text=True, cwd='.')
+        if result.returncode != 0:
+            return jsonify({"error": "Not in a git repository"}), 400
+        
+        # Check current branch
+        result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], capture_output=True, text=True, cwd='.')
+        current_branch = result.stdout.strip()
+        
+        # Switch to main branch if not already on it
+        if current_branch != 'main':
+            logger.info(f"📋 Switching from {current_branch} to main branch")
+            result = subprocess.run(['git', 'checkout', 'main'], capture_output=True, text=True, cwd='.')
+            if result.returncode != 0:
+                logger.error(f"❌ Failed to checkout main: {result.stderr}")
+                return jsonify({"error": f"Failed to checkout main: {result.stderr}"}), 500
+        
+        # Pull latest changes
+        logger.info("⬇️ Pulling latest changes from origin/main")
+        result = subprocess.run(['git', 'pull', 'origin', 'main'], capture_output=True, text=True, cwd='.')
+        if result.returncode != 0:
+            logger.error(f"❌ Git pull failed: {result.stderr}")
+            return jsonify({"error": f"Git pull failed: {result.stderr}"}), 500
+        
+        logger.info(f"✅ Git pull completed: {result.stdout.strip()}")
+        
+        # Schedule server restart in a separate thread after a short delay
+        def restart_server():
+            time.sleep(2)  # Give time for response to be sent
+            logger.info("🔄 RESTARTING SERVER")
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        
+        threading.Thread(target=restart_server, daemon=True).start()
+        
+        return jsonify({
+            "ok": True, 
+            "message": "Update completed successfully. Server restarting...",
+            "git_output": result.stdout.strip()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Update failed: {str(e)}")
+        return jsonify({"error": f"Update failed: {str(e)}"}), 500
 
 
 # Startup
